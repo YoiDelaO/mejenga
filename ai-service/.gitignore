@@ -1,0 +1,31 @@
+# Entorno virtual de Python
+.venv/
+
+# Cache de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Variables de entorno
+.env
+
+# Videos de entrada y salida
+input_videos/*
+output_videos/*
+
+# Resultados JSON generados automáticamente
+output_json/*
+
+# Mantener carpetas vacías en GitHub
+!input_videos/.gitkeep
+!output_videos/.gitkeep
+!output_json/.gitkeep
+
+# Archivos temporales
+*.log
+*.tmp
