@@ -1,0 +1,111 @@
+from pathlib import Path
+import cv2
+from ultralytics import YOLO
+
+
+MODEL_NAME = "yolov8n.pt"
+PERSON_CLASS_ID = 0
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+OUTPUT_VIDEOS_DIR = BASE_DIR / "output_videos"
+
+
+def ensure_output_folder_exists() -> None:
+    OUTPUT_VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
+    model = YOLO(MODEL_NAME)
+    video = cv2.VideoCapture(str(video_path))
+
+    if not video.isOpened():
+        return {
+            "detection_available": False,
+            "error": "Video could not be opened for detection.",
+            "frames_analyzed": 0,
+            "average_players_detected": 0,
+            "max_players_detected": 0,
+            "detection_confidence_average": 0,
+            "processed_video_path": None,
+        }
+
+    ensure_output_folder_exists()
+
+    fps = video.get(cv2.CAP_PROP_FPS)
+    width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    output_filename = f"{video_path.stem}_detected.mp4"
+    output_path = OUTPUT_VIDEOS_DIR / output_filename
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    writer = cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
+
+    frame_index = 0
+    frames_analyzed = 0
+    total_players_detected = 0
+    max_players_detected = 0
+    confidence_values = []
+
+    while True:
+        success, frame = video.read()
+
+        if not success:
+            break
+
+        if frame_index % frame_interval == 0:
+            results = model(frame, verbose=False)
+
+            players_in_frame = 0
+
+            for result in results:
+                for box in result.boxes:
+                    class_id = int(box.cls[0])
+                    confidence = float(box.conf[0])
+
+                    if class_id == PERSON_CLASS_ID:
+                        players_in_frame += 1
+                        confidence_values.append(confidence)
+
+                        x1, y1, x2, y2 = box.xyxy[0]
+                        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        cv2.putText(
+                            frame,
+                            f"Person {confidence:.2f}",
+                            (x1, max(y1 - 10, 20)),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.6,
+                            (0, 255, 0),
+                            2,
+                        )
+
+            frames_analyzed += 1
+            total_players_detected += players_in_frame
+            max_players_detected = max(max_players_detected, players_in_frame)
+
+        writer.write(frame)
+        frame_index += 1
+
+    video.release()
+    writer.release()
+
+    average_players_detected = 0
+    if frames_analyzed > 0:
+        average_players_detected = round(total_players_detected / frames_analyzed, 2)
+
+    detection_confidence_average = 0
+    if confidence_values:
+        detection_confidence_average = round(sum(confidence_values) / len(confidence_values), 2)
+
+    return {
+        "detection_available": True,
+        "model": MODEL_NAME,
+        "frame_interval": frame_interval,
+        "frames_analyzed": frames_analyzed,
+        "average_players_detected": average_players_detected,
+        "max_players_detected": max_players_detected,
+        "detection_confidence_average": detection_confidence_average,
+        "processed_video_path": str(output_path),
+    }
