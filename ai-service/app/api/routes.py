@@ -23,12 +23,17 @@ async def analyze_video(file: UploadFile = File(...)):
     if video_info["readable"]:
         detection_summary = detect_players_in_video(saved_video_path)
 
+    needs_review = not video_info["readable"]
+
+    if detection_summary and detection_summary.get("needs_admin_review"):
+        needs_review = True
+
     analysis_result = {
         "filename": file.filename,
         "saved_path": str(saved_video_path),
         "video_info": video_info,
         "detection_summary": detection_summary,
-        "needs_review": not video_info["readable"],
+        "needs_review": needs_review,
     }
 
     json_path = save_analysis_json(file.filename, analysis_result)

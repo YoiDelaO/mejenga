@@ -27,6 +27,8 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
             "average_players_detected": 0,
             "max_players_detected": 0,
             "detection_confidence_average": 0,
+            "warnings": ["Video could not be opened for detection."],
+            "needs_admin_review": True,
             "processed_video_path": None,
         }
 
@@ -100,12 +102,28 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
     if confidence_values:
         detection_confidence_average = round(sum(confidence_values) / len(confidence_values), 2)
 
+    warnings = []
+
+    if frames_analyzed == 0:
+        warnings.append("No frames were analyzed.")
+
+    if average_players_detected < 2:
+        warnings.append("Low number of players detected.")
+
+    if detection_confidence_average < 0.40:
+        warnings.append("Low detection confidence.")
+
+    if max_players_detected < 5:
+        warnings.append("Video may not show enough players for a ranked match.")
+
     analysis_quality = "poor"
 
     if average_players_detected >= 4 and detection_confidence_average >= 0.50:
         analysis_quality = "useful"
     elif average_players_detected >= 2 and detection_confidence_average >= 0.40:
         analysis_quality = "limited"
+
+    needs_admin_review = analysis_quality != "useful" or len(warnings) > 0
 
     return {
         "detection_available": True,
@@ -117,5 +135,7 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
         "max_players_detected": max_players_detected,
         "detection_confidence_average": detection_confidence_average,
         "analysis_quality": analysis_quality,
+        "warnings": warnings,
+        "needs_admin_review": needs_admin_review,
         "processed_video_path": str(output_path),
     }
