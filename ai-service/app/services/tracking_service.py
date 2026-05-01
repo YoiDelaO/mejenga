@@ -79,9 +79,9 @@ def track_players_in_video(video_path: Path, frame_interval: int = 5) -> dict:
                         x1, y1, x2, y2 = box.xyxy[0]
                         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
-                        label = f"Player"
+                        label = "P"
                         if track_id is not None:
-                            label = f"Player ID {track_id}"
+                            label = f"P{track_id}"
 
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
                         cv2.putText(
@@ -89,7 +89,7 @@ def track_players_in_video(video_path: Path, frame_interval: int = 5) -> dict:
                             label,
                             (x1, max(y1 - 15, 25)),
                             cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6,
+                            0.5,
                             (255, 0, 0),
                             2,
                         )

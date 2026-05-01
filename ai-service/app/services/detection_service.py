@@ -76,10 +76,10 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(
                             frame,
-                            f"Player {confidence:.2f}",
+                            f"P {confidence:.2f}",
                             (x1, max(y1 - 15, 25)),
                             cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6,
+                            0.5,
                             (0, 255, 0),
                             2,
                         )
