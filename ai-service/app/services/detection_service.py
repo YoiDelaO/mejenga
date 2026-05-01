@@ -5,6 +5,7 @@ from ultralytics import YOLO
 
 MODEL_NAME = "yolov8n.pt"
 PERSON_CLASS_ID = 0
+MIN_CONFIDENCE = 0.45
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 OUTPUT_VIDEOS_DIR = BASE_DIR / "output_videos"
@@ -63,7 +64,7 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
                     class_id = int(box.cls[0])
                     confidence = float(box.conf[0])
 
-                    if class_id == PERSON_CLASS_ID:
+                    if class_id == PERSON_CLASS_ID and confidence >= MIN_CONFIDENCE:
                         players_in_frame += 1
                         confidence_values.append(confidence)
 
@@ -73,8 +74,8 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(
                             frame,
-                            f"Person {confidence:.2f}",
-                            (x1, max(y1 - 10, 20)),
+                            f"Player {confidence:.2f}",
+                            (x1, max(y1 - 15, 25)),
                             cv2.FONT_HERSHEY_SIMPLEX,
                             0.6,
                             (0, 255, 0),
@@ -99,13 +100,22 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
     if confidence_values:
         detection_confidence_average = round(sum(confidence_values) / len(confidence_values), 2)
 
+    analysis_quality = "poor"
+
+    if average_players_detected >= 4 and detection_confidence_average >= 0.50:
+        analysis_quality = "useful"
+    elif average_players_detected >= 2 and detection_confidence_average >= 0.40:
+        analysis_quality = "limited"
+
     return {
         "detection_available": True,
         "model": MODEL_NAME,
         "frame_interval": frame_interval,
+        "min_confidence": MIN_CONFIDENCE,
         "frames_analyzed": frames_analyzed,
         "average_players_detected": average_players_detected,
         "max_players_detected": max_players_detected,
         "detection_confidence_average": detection_confidence_average,
+        "analysis_quality": analysis_quality,
         "processed_video_path": str(output_path),
     }
