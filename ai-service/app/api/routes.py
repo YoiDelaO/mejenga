@@ -16,7 +16,12 @@ def health_check():
 
 
 @router.post("/analyze-video")
-async def analyze_video(file: UploadFile = File(...)):
+async def analyze_video(
+    file: UploadFile = File(...),
+    run_detection: bool = True,
+    run_tracking: bool = False,
+    run_ball_detection: bool = False,
+):
     saved_video_path = await save_uploaded_video(file)
     video_info = get_video_info(saved_video_path)
 
@@ -25,9 +30,14 @@ async def analyze_video(file: UploadFile = File(...)):
     ball_summary = None
 
     if video_info["readable"]:
-        detection_summary = detect_players_in_video(saved_video_path)
-        tracking_summary = track_players_in_video(saved_video_path)
-        ball_summary = detect_ball_in_video(saved_video_path)
+        if run_detection:
+            detection_summary = detect_players_in_video(saved_video_path)
+
+        if run_tracking:
+            tracking_summary = track_players_in_video(saved_video_path)
+
+        if run_ball_detection:
+            ball_summary = detect_ball_in_video(saved_video_path)
 
     needs_review = not video_info["readable"]
 
@@ -38,6 +48,11 @@ async def analyze_video(file: UploadFile = File(...)):
         "filename": file.filename,
         "saved_path": str(saved_video_path),
         "video_info": video_info,
+        "options": {
+            "run_detection": run_detection,
+            "run_tracking": run_tracking,
+            "run_ball_detection": run_ball_detection,
+        },
         "detection_summary": detection_summary,
         "tracking_summary": tracking_summary,
         "ball_summary": ball_summary,
