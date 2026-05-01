@@ -4,6 +4,7 @@ from app.utils.file_utils import save_uploaded_video, save_analysis_json
 from app.services.video_processor import get_video_info
 from app.services.detection_service import detect_players_in_video
 from app.services.tracking_service import track_players_in_video
+from app.services.ball_service import detect_ball_in_video
 
 
 router = APIRouter()
@@ -21,10 +22,12 @@ async def analyze_video(file: UploadFile = File(...)):
 
     detection_summary = None
     tracking_summary = None
+    ball_summary = None
 
     if video_info["readable"]:
         detection_summary = detect_players_in_video(saved_video_path)
         tracking_summary = track_players_in_video(saved_video_path)
+        ball_summary = detect_ball_in_video(saved_video_path)
 
     needs_review = not video_info["readable"]
 
@@ -37,6 +40,7 @@ async def analyze_video(file: UploadFile = File(...)):
         "video_info": video_info,
         "detection_summary": detection_summary,
         "tracking_summary": tracking_summary,
+        "ball_summary": ball_summary,
         "needs_review": needs_review,
     }
 
