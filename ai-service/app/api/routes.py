@@ -5,6 +5,7 @@ from app.services.video_processor import get_video_info
 from app.services.detection_service import detect_players_in_video
 from app.services.tracking_service import track_players_in_video
 from app.services.ball_service import detect_ball_in_video
+from app.services.event_service import build_analysis_events
 
 
 router = APIRouter()
@@ -44,6 +45,16 @@ async def analyze_video(
     if detection_summary and detection_summary.get("needs_admin_review"):
         needs_review = True
 
+    analysis_events = build_analysis_events(
+        video_info=video_info,
+        detection_summary=detection_summary,
+        tracking_summary=tracking_summary,
+        ball_summary=ball_summary,
+    )
+
+    if analysis_events.get("overall_status") == "needs_review":
+        needs_review = True
+
     analysis_result = {
         "filename": file.filename,
         "saved_path": str(saved_video_path),
@@ -56,6 +67,7 @@ async def analyze_video(
         "detection_summary": detection_summary,
         "tracking_summary": tracking_summary,
         "ball_summary": ball_summary,
+        "analysis_events": analysis_events,
         "needs_review": needs_review,
     }
 
