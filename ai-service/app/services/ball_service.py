@@ -1,6 +1,6 @@
 from pathlib import Path
 import cv2
-from ultralytics import YOLO
+from app.utils.model_loader import get_yolo_model, MODEL_NAME
 
 
 MODEL_NAME = "yolov8n.pt"
@@ -16,7 +16,7 @@ def ensure_output_folder_exists() -> None:
 
 
 def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
-    model = YOLO(MODEL_NAME)
+    model = get_yolo_model()
     video = cv2.VideoCapture(str(video_path))
 
     if not video.isOpened():
