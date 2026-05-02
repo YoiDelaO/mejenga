@@ -90,20 +90,24 @@ async def analyze_match(
     cam_2: UploadFile | None = File(None),
     cam_3: UploadFile | None = File(None),
     cam_4: UploadFile | None = File(None),
+    cam_1_angle: str = "side_left",
+    cam_2_angle: str = "side_right",
+    cam_3_angle: str = "goal_left",
+    cam_4_angle: str = "goal_right",
     run_detection: bool = True,
     run_tracking: bool = False,
     run_ball_detection: bool = False,
 ):
     uploaded_cameras = [
-        ("cam_1", cam_1),
-        ("cam_2", cam_2),
-        ("cam_3", cam_3),
-        ("cam_4", cam_4),
+        ("cam_1", cam_1, cam_1_angle),
+        ("cam_2", cam_2, cam_2_angle),
+        ("cam_3", cam_3, cam_3_angle),
+        ("cam_4", cam_4, cam_4_angle),
     ]
 
     camera_results = []
 
-    for camera_id, file in uploaded_cameras:
+    for camera_id, file, camera_angle in uploaded_cameras:
         if file is None:
             continue
 
@@ -135,6 +139,7 @@ async def analyze_match(
 
         camera_result = {
             "camera_id": camera_id,
+            "camera_angle": camera_angle,
             "filename": file.filename,
             "saved_path": str(saved_video_path),
             "video_info": video_info,
@@ -158,6 +163,12 @@ async def analyze_match(
             "run_detection": run_detection,
             "run_tracking": run_tracking,
             "run_ball_detection": run_ball_detection,
+            "camera_angles": {
+                "cam_1": cam_1_angle,
+                "cam_2": cam_2_angle,
+                "cam_3": cam_3_angle,
+                "cam_4": cam_4_angle,
+            },
         },
         "camera_results": camera_results,
         "match_summary": match_summary,

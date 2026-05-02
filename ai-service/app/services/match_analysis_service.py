@@ -5,6 +5,10 @@ def build_match_summary(camera_results: list[dict]) -> dict:
     limited_cameras = 0
     unusable_cameras = 0
 
+    side_cameras = 0
+    goal_cameras = 0
+    unknown_angle_cameras = 0
+
     cameras_with_detection = 0
     cameras_with_tracking = 0
     cameras_with_ball = 0
@@ -14,6 +18,8 @@ def build_match_summary(camera_results: list[dict]) -> dict:
 
     for camera_result in camera_results:
         camera_id = camera_result.get("camera_id")
+        camera_angle = camera_result.get("camera_angle", "unknown")
+
         video_quality = camera_result.get("video_quality", {})
         detection_summary = camera_result.get("detection_summary")
         tracking_summary = camera_result.get("tracking_summary")
@@ -28,6 +34,13 @@ def build_match_summary(camera_results: list[dict]) -> dict:
             limited_cameras += 1
         else:
             unusable_cameras += 1
+
+        if camera_angle in ["side_left", "side_right"]:
+            side_cameras += 1
+        elif camera_angle in ["goal_left", "goal_right"]:
+            goal_cameras += 1
+        else:
+            unknown_angle_cameras += 1
 
         if detection_summary:
             cameras_with_detection += 1
@@ -46,6 +59,15 @@ def build_match_summary(camera_results: list[dict]) -> dict:
 
         for warning in info_warnings:
             combined_info.append(f"{camera_id}: {warning}")
+
+    if side_cameras == 0:
+        combined_info.append("No side cameras were provided. Tactical movement analysis may be limited.")
+
+    if goal_cameras == 0:
+        combined_info.append("No goal cameras were provided. Goal validation may be limited.")
+
+    if unknown_angle_cameras > 0:
+        combined_info.append("Some cameras have unknown angles.")
 
     match_status = "ok"
 
@@ -67,6 +89,9 @@ def build_match_summary(camera_results: list[dict]) -> dict:
         "usable_cameras": usable_cameras,
         "limited_cameras": limited_cameras,
         "unusable_cameras": unusable_cameras,
+        "side_cameras": side_cameras,
+        "goal_cameras": goal_cameras,
+        "unknown_angle_cameras": unknown_angle_cameras,
         "cameras_with_detection": cameras_with_detection,
         "cameras_with_tracking": cameras_with_tracking,
         "cameras_with_ball_detected": cameras_with_ball,
