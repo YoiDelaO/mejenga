@@ -6,6 +6,7 @@ from app.services.detection_service import detect_players_in_video
 from app.services.tracking_service import track_players_in_video
 from app.services.ball_service import detect_ball_in_video
 from app.services.event_service import build_analysis_events
+from app.services.video_quality_service import evaluate_video_quality
 
 
 router = APIRouter()
@@ -25,6 +26,7 @@ async def analyze_video(
 ):
     saved_video_path = await save_uploaded_video(file)
     video_info = get_video_info(saved_video_path)
+    video_quality = evaluate_video_quality(video_info)
 
     detection_summary = None
     tracking_summary = None
@@ -59,6 +61,7 @@ async def analyze_video(
         "filename": file.filename,
         "saved_path": str(saved_video_path),
         "video_info": video_info,
+        "video_quality": video_quality,
         "options": {
             "run_detection": run_detection,
             "run_tracking": run_tracking,
