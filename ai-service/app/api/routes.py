@@ -11,6 +11,7 @@ from app.services.event_service import build_analysis_events
 from app.services.match_analysis_service import build_match_summary
 from app.services.camera_angle_service import validate_camera_angles, get_camera_angle_metadata
 from app.services.file_validation_service import validate_video_file
+from app.services.match_mode_service import validate_match_mode, get_match_mode_metadata
 
 
 router = APIRouter()
@@ -27,6 +28,7 @@ def get_metadata():
         "service": "Mejengas AI Service",
         "version": "0.1.0",
         "camera_angles": get_camera_angle_metadata(),
+        "match_modes": get_match_mode_metadata(),
         "analysis_options": {
             "run_detection": {
                 "default": True,
@@ -43,7 +45,7 @@ def get_metadata():
         },
         "recommended_ranked_setup": {
             "ideal": ["side_left", "side_right", "goal_left", "goal_right"],
-            "description": "For verified ranked matches, Mejengas recommends two side cameras and two goal cameras.",
+            "description": "For ranked matches, Mejengas requires two side cameras and two goal cameras.",
         },
     }
 
@@ -135,6 +137,7 @@ async def analyze_match(
     cam_2_angle: str = "side_right",
     cam_3_angle: str = "goal_left",
     cam_4_angle: str = "goal_right",
+    match_mode: str = "ranked",
     run_detection: bool = True,
     run_tracking: bool = False,
     run_ball_detection: bool = False,
@@ -219,12 +222,25 @@ async def analyze_match(
         camera_results.append(camera_result)
 
     match_summary = build_match_summary(camera_results)
+    match_mode_validation = validate_match_mode(match_mode, camera_results)
 
-    needs_review = match_summary.get("match_status") == "needs_review"
+    needs_review = False
+
+    if match_mode_validation["match_mode"] == "ranked":
+        if match_summary.get("match_status") == "needs_review":
+            needs_review = True
+
+        if not match_mode_validation["is_valid_for_mode"]:
+            needs_review = True
+
+    if match_mode_validation["match_mode"] == "casual":
+        if not match_mode_validation["is_valid_for_mode"]:
+            needs_review = True
 
     analysis_result = {
         "match_analysis": True,
         "options": {
+            "match_mode": match_mode_validation["match_mode"],
             "run_detection": run_detection,
             "run_tracking": run_tracking,
             "run_ball_detection": run_ball_detection,
@@ -233,6 +249,7 @@ async def analyze_match(
         },
         "camera_results": camera_results,
         "match_summary": match_summary,
+        "match_mode_validation": match_mode_validation,
         "needs_review": needs_review,
     }
 
