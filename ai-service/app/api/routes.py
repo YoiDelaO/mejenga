@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from app.utils.file_utils import save_uploaded_video, save_analysis_json
 from app.services.video_processor import get_video_info
@@ -10,6 +10,7 @@ from app.services.ball_service import detect_ball_in_video
 from app.services.event_service import build_analysis_events
 from app.services.match_analysis_service import build_match_summary
 from app.services.camera_angle_service import validate_camera_angles, get_camera_angle_metadata
+from app.services.file_validation_service import validate_video_file
 
 
 router = APIRouter()
@@ -18,6 +19,7 @@ router = APIRouter()
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 @router.get("/metadata")
 def get_metadata():
@@ -53,6 +55,17 @@ async def analyze_video(
     run_tracking: bool = False,
     run_ball_detection: bool = False,
 ):
+    file_validation = validate_video_file(file.filename, file.content_type)
+
+    if not file_validation["is_valid_video"]:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Uploaded file is not a valid video.",
+                "file_validation": file_validation,
+            },
+        )
+
     saved_video_path = await save_uploaded_video(file, prefix="single_video")
     video_info = get_video_info(saved_video_path)
     video_quality = evaluate_video_quality(video_info)
@@ -90,6 +103,7 @@ async def analyze_video(
     analysis_result = {
         "filename": file.filename,
         "saved_path": str(saved_video_path),
+        "file_validation": file_validation,
         "video_info": video_info,
         "video_quality": video_quality,
         "field_zones": field_zones,
@@ -149,6 +163,18 @@ async def analyze_match(
         if file is None:
             continue
 
+        file_validation = validate_video_file(file.filename, file.content_type)
+
+        if not file_validation["is_valid_video"]:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": f"Uploaded file for {camera_id} is not a valid video.",
+                    "camera_id": camera_id,
+                    "file_validation": file_validation,
+                },
+            )
+
         saved_video_path = await save_uploaded_video(file, prefix=camera_id)
         video_info = get_video_info(saved_video_path)
         video_quality = evaluate_video_quality(video_info)
@@ -180,6 +206,7 @@ async def analyze_match(
             "camera_angle": camera_angle,
             "filename": file.filename,
             "saved_path": str(saved_video_path),
+            "file_validation": file_validation,
             "video_info": video_info,
             "video_quality": video_quality,
             "field_zones": field_zones,
