@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import datetime
+from uuid import uuid4
 import json
 import re
 
@@ -21,10 +22,25 @@ def clean_filename(filename: str) -> str:
     return clean_name.lower()
 
 
-async def save_uploaded_video(file: UploadFile) -> Path:
+def build_unique_video_filename(original_filename: str, prefix: str | None = None) -> str:
+    original_path = Path(original_filename)
+    clean_name = clean_filename(original_filename)
+    extension = original_path.suffix.lower() or ".mp4"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    short_id = uuid4().hex[:8]
+
+    if prefix:
+        return f"{prefix}_{clean_name}_{timestamp}_{short_id}{extension}"
+
+    return f"{clean_name}_{timestamp}_{short_id}{extension}"
+
+
+async def save_uploaded_video(file: UploadFile, prefix: str | None = None) -> Path:
     ensure_folder_exists(INPUT_VIDEOS_DIR)
 
-    file_path = INPUT_VIDEOS_DIR / file.filename
+    unique_filename = build_unique_video_filename(file.filename, prefix)
+    file_path = INPUT_VIDEOS_DIR / unique_filename
+
     content = await file.read()
 
     with open(file_path, "wb") as video_file:
@@ -38,7 +54,8 @@ def save_analysis_json(original_filename: str, analysis_data: dict) -> Path:
 
     clean_name = clean_filename(original_filename)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    json_filename = f"{clean_name}_{timestamp}.json"
+    short_id = uuid4().hex[:8]
+    json_filename = f"{clean_name}_{timestamp}_{short_id}.json"
     json_path = OUTPUT_JSON_DIR / json_filename
 
     with open(json_path, "w", encoding="utf-8") as json_file:

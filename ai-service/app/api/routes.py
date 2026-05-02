@@ -26,7 +26,7 @@ async def analyze_video(
     run_tracking: bool = False,
     run_ball_detection: bool = False,
 ):
-    saved_video_path = await save_uploaded_video(file)
+    saved_video_path = await save_uploaded_video(file, prefix="single_video")
     video_info = get_video_info(saved_video_path)
     video_quality = evaluate_video_quality(video_info)
     field_zones = get_field_zones(video_info)
@@ -107,7 +107,7 @@ async def analyze_match(
         if file is None:
             continue
 
-        saved_video_path = await save_uploaded_video(file)
+        saved_video_path = await save_uploaded_video(file, prefix=camera_id)
         video_info = get_video_info(saved_video_path)
         video_quality = evaluate_video_quality(video_info)
         field_zones = get_field_zones(video_info)
