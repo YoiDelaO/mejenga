@@ -9,6 +9,7 @@ from app.services.tracking_service import track_players_in_video
 from app.services.ball_service import detect_ball_in_video
 from app.services.event_service import build_analysis_events
 from app.services.match_analysis_service import build_match_summary
+from app.services.camera_angle_service import validate_camera_angles
 
 
 router = APIRouter()
@@ -98,11 +99,22 @@ async def analyze_match(
     run_tracking: bool = False,
     run_ball_detection: bool = False,
 ):
+    camera_angle_validation = validate_camera_angles(
+        {
+            "cam_1": cam_1_angle,
+            "cam_2": cam_2_angle,
+            "cam_3": cam_3_angle,
+            "cam_4": cam_4_angle,
+        }
+    )
+
+    normalized_angles = camera_angle_validation["normalized_angles"]
+
     uploaded_cameras = [
-        ("cam_1", cam_1, cam_1_angle),
-        ("cam_2", cam_2, cam_2_angle),
-        ("cam_3", cam_3, cam_3_angle),
-        ("cam_4", cam_4, cam_4_angle),
+        ("cam_1", cam_1, normalized_angles["cam_1"]),
+        ("cam_2", cam_2, normalized_angles["cam_2"]),
+        ("cam_3", cam_3, normalized_angles["cam_3"]),
+        ("cam_4", cam_4, normalized_angles["cam_4"]),
     ]
 
     camera_results = []
@@ -163,12 +175,8 @@ async def analyze_match(
             "run_detection": run_detection,
             "run_tracking": run_tracking,
             "run_ball_detection": run_ball_detection,
-            "camera_angles": {
-                "cam_1": cam_1_angle,
-                "cam_2": cam_2_angle,
-                "cam_3": cam_3_angle,
-                "cam_4": cam_4_angle,
-            },
+            "camera_angles": normalized_angles,
+            "camera_angle_validation": camera_angle_validation,
         },
         "camera_results": camera_results,
         "match_summary": match_summary,
