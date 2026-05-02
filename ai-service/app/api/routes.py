@@ -9,7 +9,7 @@ from app.services.tracking_service import track_players_in_video
 from app.services.ball_service import detect_ball_in_video
 from app.services.event_service import build_analysis_events
 from app.services.match_analysis_service import build_match_summary
-from app.services.camera_angle_service import validate_camera_angles
+from app.services.camera_angle_service import validate_camera_angles, get_camera_angle_metadata
 
 
 router = APIRouter()
@@ -18,6 +18,32 @@ router = APIRouter()
 @router.get("/health")
 def health_check():
     return {"status": "ok"}
+
+@router.get("/metadata")
+def get_metadata():
+    return {
+        "service": "Mejengas AI Service",
+        "version": "0.1.0",
+        "camera_angles": get_camera_angle_metadata(),
+        "analysis_options": {
+            "run_detection": {
+                "default": True,
+                "description": "Detect players in the uploaded video.",
+            },
+            "run_tracking": {
+                "default": False,
+                "description": "Track detected players and generate player IDs.",
+            },
+            "run_ball_detection": {
+                "default": False,
+                "description": "Experimental ball detection.",
+            },
+        },
+        "recommended_ranked_setup": {
+            "ideal": ["side_left", "side_right", "goal_left", "goal_right"],
+            "description": "For verified ranked matches, Mejengas recommends two side cameras and two goal cameras.",
+        },
+    }
 
 
 @router.post("/analyze-video")
