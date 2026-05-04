@@ -14,6 +14,7 @@ from app.services.file_validation_service import validate_video_file
 from app.services.match_mode_service import validate_match_mode, get_match_mode_metadata
 from app.services.attack_event_service import build_attack_events
 from app.services.danger_event_service import build_danger_events
+from app.services.shot_event_service import build_shot_events
 
 
 router = APIRouter()
@@ -90,10 +91,16 @@ async def analyze_video(
             ball_summary = detect_ball_in_video(saved_video_path)
 
     attack_events = build_attack_events(detection_summary)
+
     danger_events = build_danger_events(
         detection_summary=detection_summary,
         ball_summary=ball_summary,
         attack_events=attack_events,
+    )
+
+    shot_events = build_shot_events(
+        danger_events=danger_events,
+        ball_summary=ball_summary,
     )
 
     analysis_events = build_analysis_events(
@@ -131,6 +138,7 @@ async def analyze_video(
         "analysis_events": analysis_events,
         "attack_events": attack_events,
         "danger_events": danger_events,
+        "shot_events": shot_events,
         "needs_review": needs_review,
     }
 
@@ -211,10 +219,16 @@ async def analyze_match(
                 ball_summary = detect_ball_in_video(saved_video_path)
 
         attack_events = build_attack_events(detection_summary)
+
         danger_events = build_danger_events(
             detection_summary=detection_summary,
             ball_summary=ball_summary,
             attack_events=attack_events,
+        )
+
+        shot_events = build_shot_events(
+            danger_events=danger_events,
+            ball_summary=ball_summary,
         )
 
         analysis_events = build_analysis_events(
@@ -241,6 +255,7 @@ async def analyze_match(
             "analysis_events": analysis_events,
             "attack_events": attack_events,
             "danger_events": danger_events,
+            "shot_events": shot_events,
         }
 
         camera_results.append(camera_result)
