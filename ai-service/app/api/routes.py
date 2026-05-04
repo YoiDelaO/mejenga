@@ -110,6 +110,7 @@ async def analyze_video(
         ball_summary=ball_summary,
         attack_events=attack_events,
         danger_events=danger_events,
+        shot_events=shot_events,
     )
 
     needs_review = not video_info["readable"]
@@ -238,6 +239,7 @@ async def analyze_match(
             ball_summary=ball_summary,
             attack_events=attack_events,
             danger_events=danger_events,
+            shot_events=shot_events,
         )
 
         camera_result = {

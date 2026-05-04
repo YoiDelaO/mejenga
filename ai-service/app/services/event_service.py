@@ -5,6 +5,7 @@ def build_analysis_events(
     ball_summary: dict | None,
     attack_events: dict | None = None,
     danger_events: dict | None = None,
+    shot_events: dict | None = None,
 ) -> dict:
     events = []
     critical_warnings = []
@@ -101,6 +102,25 @@ def build_analysis_events(
 
         danger_warnings = danger_events.get("warnings", [])
         info_warnings.extend(danger_warnings)
+
+    if shot_events:
+        if shot_events.get("possible_shot_detected"):
+            events.append("Possible shot event detected.")
+
+            for shot_event in shot_events.get("events", []):
+                side = shot_event.get("side", "unknown")
+
+                if side == "left":
+                    events.append("Possible shot event detected near the left goal area.")
+
+                elif side == "right":
+                    events.append("Possible shot event detected near the right goal area.")
+
+                else:
+                    events.append("Possible shot event detected near an unknown goal area.")
+        else:
+            shot_warnings = shot_events.get("warnings", [])
+            info_warnings.extend(shot_warnings)
 
     if tracking_summary:
         unique_track_ids = tracking_summary.get("unique_track_ids", 0)
