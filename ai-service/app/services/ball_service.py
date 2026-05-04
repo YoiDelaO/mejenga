@@ -19,13 +19,9 @@ def ensure_output_folder_exists() -> None:
 
 
 def draw_ball_marker(frame, center_x: int, center_y: int, confidence: float | None = None) -> None:
-    # Círculo grande exterior
     cv2.circle(frame, (center_x, center_y), 28, (0, 0, 255), 4)
-
-    # Círculo interno
     cv2.circle(frame, (center_x, center_y), 8, (0, 0, 255), -1)
 
-    # Cruz para ubicar mejor la bola
     cv2.line(frame, (center_x - 35, center_y), (center_x + 35, center_y), (0, 0, 255), 3)
     cv2.line(frame, (center_x, center_y - 35), (center_x, center_y + 35), (0, 0, 255), 3)
 
@@ -36,7 +32,6 @@ def draw_ball_marker(frame, center_x: int, center_y: int, confidence: float | No
     text_x = max(center_x - 50, 10)
     text_y = max(center_y - 45, 30)
 
-    # Fondo oscuro para que el texto se vea mejor
     cv2.rectangle(frame, (text_x - 5, text_y - 25), (text_x + 120, text_y + 8), (0, 0, 0), -1)
 
     cv2.putText(
@@ -48,6 +43,13 @@ def draw_ball_marker(frame, center_x: int, center_y: int, confidence: float | No
         (0, 0, 255),
         3,
     )
+
+
+def get_timestamp_seconds(frame_index: int, fps: float) -> float:
+    if fps <= 0:
+        return 0
+
+    return round(frame_index / fps, 2)
 
 
 def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
@@ -63,6 +65,7 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
             "ball_detection_rate": 0,
             "ball_confidence_average": 0,
             "ball_detected": False,
+            "ball_detection_timestamps": [],
             "ball_goal_area_activity": None,
             "ball_warnings": ["Video could not be opened for ball detection."],
             "processed_ball_video_path": None,
@@ -83,7 +86,11 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
     ball_goal_area_activity = {
         "left_goal_area_ball_detections": 0,
         "right_goal_area_ball_detections": 0,
+        "left_goal_area_timestamps": [],
+        "right_goal_area_timestamps": [],
     }
+
+    ball_detection_timestamps = []
 
     output_filename = f"{video_path.stem}_ball.mp4"
     output_path = OUTPUT_VIDEOS_DIR / output_filename
@@ -132,11 +139,23 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
 
             if best_ball:
                 ball_found_in_frame = True
-                confidence_values.append(best_ball["confidence"])
 
                 center_x = best_ball["center_x"]
                 center_y = best_ball["center_y"]
                 confidence = best_ball["confidence"]
+                timestamp_seconds = get_timestamp_seconds(frame_index, fps)
+
+                confidence_values.append(confidence)
+
+                ball_detection_timestamps.append(
+                    {
+                        "frame_index": frame_index,
+                        "timestamp_seconds": timestamp_seconds,
+                        "center_x": center_x,
+                        "center_y": center_y,
+                        "confidence": round(confidence, 2),
+                    }
+                )
 
                 last_ball_position = (center_x, center_y)
                 last_ball_confidence = confidence
@@ -144,16 +163,33 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
 
                 if left_goal_area and is_point_inside_zone(center_x, center_y, left_goal_area):
                     ball_goal_area_activity["left_goal_area_ball_detections"] += 1
+                    ball_goal_area_activity["left_goal_area_timestamps"].append(
+                        {
+                            "frame_index": frame_index,
+                            "timestamp_seconds": timestamp_seconds,
+                            "center_x": center_x,
+                            "center_y": center_y,
+                            "confidence": round(confidence, 2),
+                        }
+                    )
 
                 if right_goal_area and is_point_inside_zone(center_x, center_y, right_goal_area):
                     ball_goal_area_activity["right_goal_area_ball_detections"] += 1
+                    ball_goal_area_activity["right_goal_area_timestamps"].append(
+                        {
+                            "frame_index": frame_index,
+                            "timestamp_seconds": timestamp_seconds,
+                            "center_x": center_x,
+                            "center_y": center_y,
+                            "confidence": round(confidence, 2),
+                        }
+                    )
 
             frames_analyzed += 1
 
             if ball_found_in_frame:
                 frames_with_ball += 1
 
-        # Mantener la marca visible por varios frames después de detectar la bola
         if last_ball_position and persistence_counter > 0:
             center_x, center_y = last_ball_position
             draw_ball_marker(frame, center_x, center_y, last_ball_confidence)
@@ -184,6 +220,8 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
         "total_goal_area_ball_detections": total_goal_area_ball_detections,
         "left_goal_area_ball_detections": left_ball_count,
         "right_goal_area_ball_detections": right_ball_count,
+        "left_goal_area_timestamps": ball_goal_area_activity["left_goal_area_timestamps"],
+        "right_goal_area_timestamps": ball_goal_area_activity["right_goal_area_timestamps"],
     }
 
     ball_warnings = []
@@ -208,6 +246,7 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
         "ball_detection_rate": ball_detection_rate,
         "ball_confidence_average": ball_confidence_average,
         "ball_detected": ball_detected,
+        "ball_detection_timestamps": ball_detection_timestamps,
         "ball_goal_area_activity": ball_goal_area_summary,
         "ball_warnings": ball_warnings,
         "processed_ball_video_path": str(output_path),
