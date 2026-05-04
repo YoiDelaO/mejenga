@@ -93,14 +93,15 @@ async def analyze_video(
     if detection_summary and detection_summary.get("needs_admin_review"):
         needs_review = True
 
+    attack_events = build_attack_events(detection_summary)
+
     analysis_events = build_analysis_events(
         video_info=video_info,
         detection_summary=detection_summary,
         tracking_summary=tracking_summary,
         ball_summary=ball_summary,
+        attack_events=attack_events,
     )
-
-    attack_events = build_attack_events(detection_summary)
 
     if analysis_events.get("overall_status") == "needs_review":
         needs_review = True
@@ -201,14 +202,15 @@ async def analyze_match(
             if run_ball_detection:
                 ball_summary = detect_ball_in_video(saved_video_path)
 
+        attack_events = build_attack_events(detection_summary)
+
         analysis_events = build_analysis_events(
             video_info=video_info,
             detection_summary=detection_summary,
             tracking_summary=tracking_summary,
             ball_summary=ball_summary,
+            attack_events=attack_events,
         )
-
-        attack_events = build_attack_events(detection_summary)
 
         camera_result = {
             "camera_id": camera_id,

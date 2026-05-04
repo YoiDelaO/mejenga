@@ -3,6 +3,7 @@ def build_analysis_events(
     detection_summary: dict | None,
     tracking_summary: dict | None,
     ball_summary: dict | None,
+    attack_events: dict | None = None,
 ) -> dict:
     events = []
     critical_warnings = []
@@ -58,6 +59,28 @@ def build_analysis_events(
         critical_warnings.extend(detected_warnings)
     else:
         info_warnings.append("Player detection was not executed.")
+
+    if attack_events:
+        if attack_events.get("possible_attack_detected"):
+            events.append("Possible attack activity was detected near goal areas.")
+
+            for attack_event in attack_events.get("events", []):
+                event_type = attack_event.get("type")
+
+                if event_type == "left_goal_area_pressure":
+                    events.append("Possible pressure detected near the left goal area.")
+
+                if event_type == "right_goal_area_pressure":
+                    events.append("Possible pressure detected near the right goal area.")
+
+                if event_type == "left_goal_area_activity":
+                    events.append("Some attack-like activity was detected near the left goal area.")
+
+                if event_type == "right_goal_area_activity":
+                    events.append("Some attack-like activity was detected near the right goal area.")
+        else:
+            attack_warnings = attack_events.get("warnings", [])
+            info_warnings.extend(attack_warnings)
 
     if tracking_summary:
         unique_track_ids = tracking_summary.get("unique_track_ids", 0)
