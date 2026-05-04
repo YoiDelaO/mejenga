@@ -6,6 +6,7 @@ def build_analysis_events(
     attack_events: dict | None = None,
     danger_events: dict | None = None,
     shot_events: dict | None = None,
+    goal_candidate_events: dict | None = None,
 ) -> dict:
     events = []
     critical_warnings = []
@@ -121,6 +122,29 @@ def build_analysis_events(
         else:
             shot_warnings = shot_events.get("warnings", [])
             info_warnings.extend(shot_warnings)
+
+    if goal_candidate_events:
+        if goal_candidate_events.get("possible_goal_candidate_detected"):
+            events.append("Possible goal candidate detected.")
+            events.append("Goal camera validation is required.")
+
+            if not goal_candidate_events.get("is_confirmed_goal", False):
+                events.append("Goal is not confirmed by the AI service.")
+
+            for goal_candidate_event in goal_candidate_events.get("events", []):
+                side = goal_candidate_event.get("side", "unknown")
+
+                if side == "left":
+                    events.append("Possible goal candidate detected near the left goal area.")
+
+                elif side == "right":
+                    events.append("Possible goal candidate detected near the right goal area.")
+
+                else:
+                    events.append("Possible goal candidate detected near an unknown goal area.")
+        else:
+            goal_candidate_warnings = goal_candidate_events.get("warnings", [])
+            info_warnings.extend(goal_candidate_warnings)
 
     if tracking_summary:
         unique_track_ids = tracking_summary.get("unique_track_ids", 0)
