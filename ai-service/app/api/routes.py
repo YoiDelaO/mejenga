@@ -12,6 +12,7 @@ from app.services.match_analysis_service import build_match_summary
 from app.services.camera_angle_service import validate_camera_angles, get_camera_angle_metadata
 from app.services.file_validation_service import validate_video_file
 from app.services.match_mode_service import validate_match_mode, get_match_mode_metadata
+from app.services.attack_event_service import build_attack_events
 
 
 router = APIRouter()
@@ -99,6 +100,8 @@ async def analyze_video(
         ball_summary=ball_summary,
     )
 
+    attack_events = build_attack_events(detection_summary)
+
     if analysis_events.get("overall_status") == "needs_review":
         needs_review = True
 
@@ -118,6 +121,7 @@ async def analyze_video(
         "tracking_summary": tracking_summary,
         "ball_summary": ball_summary,
         "analysis_events": analysis_events,
+        "attack_events": attack_events,
         "needs_review": needs_review,
     }
 
@@ -204,6 +208,8 @@ async def analyze_match(
             ball_summary=ball_summary,
         )
 
+        attack_events = build_attack_events(detection_summary)
+
         camera_result = {
             "camera_id": camera_id,
             "camera_angle": camera_angle,
@@ -217,6 +223,7 @@ async def analyze_match(
             "tracking_summary": tracking_summary,
             "ball_summary": ball_summary,
             "analysis_events": analysis_events,
+            "attack_events": attack_events,
         }
 
         camera_results.append(camera_result)
