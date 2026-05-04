@@ -37,6 +37,23 @@ def build_analysis_events(
         else:
             critical_warnings.append("Player detection quality is poor.")
 
+        goal_area_activity = detection_summary.get("goal_area_activity")
+
+        if goal_area_activity:
+            if goal_area_activity.get("activity_detected"):
+                events.append("Players were detected near goal areas.")
+
+                left_count = goal_area_activity.get("left_goal_area_detections", 0)
+                right_count = goal_area_activity.get("right_goal_area_detections", 0)
+
+                if left_count > 0:
+                    events.append("Players were detected near the left goal area.")
+
+                if right_count > 0:
+                    events.append("Players were detected near the right goal area.")
+            else:
+                info_warnings.append("No player activity was detected near goal areas.")
+
         detected_warnings = detection_summary.get("warnings", [])
         critical_warnings.extend(detected_warnings)
     else:
