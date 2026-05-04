@@ -1,8 +1,12 @@
 from pathlib import Path
 import cv2
-from app.utils.model_loader import get_yolo_model, MODEL_NAME
+from ultralytics import YOLO
+
 from app.services.field_zone_service import get_field_zones
-from app.services.goal_area_activity_service import is_point_inside_zone, summarize_goal_area_activity
+from app.services.goal_area_activity_service import (
+    is_point_inside_zone,
+    summarize_goal_area_activity,
+)
 
 
 MODEL_NAME = "yolov8n.pt"
@@ -17,8 +21,15 @@ def ensure_output_folder_exists() -> None:
     OUTPUT_VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def get_timestamp_seconds(frame_index: int, fps: float) -> float:
+    if fps <= 0:
+        return 0
+
+    return round(frame_index / fps, 2)
+
+
 def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
-    model = get_yolo_model()
+    model = YOLO(MODEL_NAME)
     video = cv2.VideoCapture(str(video_path))
 
     if not video.isOpened():
@@ -29,8 +40,6 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
             "average_players_detected": 0,
             "max_players_detected": 0,
             "detection_confidence_average": 0,
-            "warnings": ["Video could not be opened for detection."],
-            "needs_admin_review": True,
             "processed_video_path": None,
         }
 
@@ -39,6 +48,7 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
     fps = video.get(cv2.CAP_PROP_FPS)
     width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
     field_zones = get_field_zones({"width": width, "height": height})
     zones = field_zones.get("zones", {})
 
@@ -48,6 +58,8 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
     goal_area_activity = {
         "left_goal_area_detections": 0,
         "right_goal_area_detections": 0,
+        "left_goal_area_timestamps": [],
+        "right_goal_area_timestamps": [],
     }
 
     output_filename = f"{video_path.stem}_detected.mp4"
@@ -70,8 +82,8 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
 
         if frame_index % frame_interval == 0:
             results = model(frame, verbose=False)
-
             players_in_frame = 0
+            timestamp_seconds = get_timestamp_seconds(frame_index, fps)
 
             for result in results:
                 for box in result.boxes:
@@ -84,22 +96,41 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
 
                         x1, y1, x2, y2 = box.xyxy[0]
                         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+
                         center_x = int((x1 + x2) / 2)
                         center_y = int((y1 + y2) / 2)
 
                         if left_goal_area and is_point_inside_zone(center_x, center_y, left_goal_area):
                             goal_area_activity["left_goal_area_detections"] += 1
+                            goal_area_activity["left_goal_area_timestamps"].append(
+                                {
+                                    "frame_index": frame_index,
+                                    "timestamp_seconds": timestamp_seconds,
+                                    "center_x": center_x,
+                                    "center_y": center_y,
+                                    "confidence": round(confidence, 2),
+                                }
+                            )
 
                         if right_goal_area and is_point_inside_zone(center_x, center_y, right_goal_area):
                             goal_area_activity["right_goal_area_detections"] += 1
+                            goal_area_activity["right_goal_area_timestamps"].append(
+                                {
+                                    "frame_index": frame_index,
+                                    "timestamp_seconds": timestamp_seconds,
+                                    "center_x": center_x,
+                                    "center_y": center_y,
+                                    "confidence": round(confidence, 2),
+                                }
+                            )
 
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(
                             frame,
-                            f"P {confidence:.2f}",
+                            f"Player {confidence:.2f}",
                             (x1, max(y1 - 15, 25)),
                             cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5,
+                            0.6,
                             (0, 255, 0),
                             2,
                         )

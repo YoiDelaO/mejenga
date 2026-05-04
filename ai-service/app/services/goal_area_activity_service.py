@@ -9,6 +9,9 @@ def summarize_goal_area_activity(goal_area_activity: dict) -> dict:
     left_count = goal_area_activity.get("left_goal_area_detections", 0)
     right_count = goal_area_activity.get("right_goal_area_detections", 0)
 
+    left_timestamps = goal_area_activity.get("left_goal_area_timestamps", [])
+    right_timestamps = goal_area_activity.get("right_goal_area_timestamps", [])
+
     total_goal_area_detections = left_count + right_count
     activity_detected = total_goal_area_detections > 0
 
@@ -37,5 +40,7 @@ def summarize_goal_area_activity(goal_area_activity: dict) -> dict:
         "total_goal_area_detections": total_goal_area_detections,
         "left_goal_area_detections": left_count,
         "right_goal_area_detections": right_count,
+        "left_goal_area_timestamps": left_timestamps,
+        "right_goal_area_timestamps": right_timestamps,
         "events": events,
     }
