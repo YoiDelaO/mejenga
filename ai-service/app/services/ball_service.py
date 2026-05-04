@@ -1,9 +1,11 @@
 from pathlib import Path
 import cv2
+
 from app.utils.model_loader import get_yolo_model, MODEL_NAME
+from app.services.field_zone_service import get_field_zones
+from app.services.goal_area_activity_service import is_point_inside_zone
 
 
-MODEL_NAME = "yolov8n.pt"
 SPORTS_BALL_CLASS_ID = 32
 MIN_BALL_CONFIDENCE = 0.25
 
@@ -28,6 +30,7 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
             "ball_detection_rate": 0,
             "ball_confidence_average": 0,
             "ball_detected": False,
+            "ball_goal_area_activity": None,
             "ball_warnings": ["Video could not be opened for ball detection."],
             "processed_ball_video_path": None,
         }
@@ -37,6 +40,17 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
     fps = video.get(cv2.CAP_PROP_FPS)
     width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    field_zones = get_field_zones({"width": width, "height": height})
+    zones = field_zones.get("zones", {})
+
+    left_goal_area = zones.get("left_goal_area")
+    right_goal_area = zones.get("right_goal_area")
+
+    ball_goal_area_activity = {
+        "left_goal_area_ball_detections": 0,
+        "right_goal_area_ball_detections": 0,
+    }
 
     output_filename = f"{video_path.stem}_ball.mp4"
     output_path = OUTPUT_VIDEOS_DIR / output_filename
@@ -74,6 +88,12 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
                         center_x = int((x1 + x2) / 2)
                         center_y = int((y1 + y2) / 2)
 
+                        if left_goal_area and is_point_inside_zone(center_x, center_y, left_goal_area):
+                            ball_goal_area_activity["left_goal_area_ball_detections"] += 1
+
+                        if right_goal_area and is_point_inside_zone(center_x, center_y, right_goal_area):
+                            ball_goal_area_activity["right_goal_area_ball_detections"] += 1
+
                         cv2.circle(frame, (center_x, center_y), 12, (0, 0, 255), 3)
                         cv2.putText(
                             frame,
@@ -106,6 +126,17 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
 
     ball_detected = frames_with_ball > 0
 
+    left_ball_count = ball_goal_area_activity["left_goal_area_ball_detections"]
+    right_ball_count = ball_goal_area_activity["right_goal_area_ball_detections"]
+    total_goal_area_ball_detections = left_ball_count + right_ball_count
+
+    ball_goal_area_summary = {
+        "ball_near_goal_area_detected": total_goal_area_ball_detections > 0,
+        "total_goal_area_ball_detections": total_goal_area_ball_detections,
+        "left_goal_area_ball_detections": left_ball_count,
+        "right_goal_area_ball_detections": right_ball_count,
+    }
+
     ball_warnings = []
 
     if not ball_detected:
@@ -127,6 +158,7 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
         "ball_detection_rate": ball_detection_rate,
         "ball_confidence_average": ball_confidence_average,
         "ball_detected": ball_detected,
+        "ball_goal_area_activity": ball_goal_area_summary,
         "ball_warnings": ball_warnings,
         "processed_ball_video_path": str(output_path),
     }

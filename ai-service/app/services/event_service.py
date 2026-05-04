@@ -98,6 +98,20 @@ def build_analysis_events(
     if ball_summary:
         if ball_summary.get("ball_detected"):
             events.append("Ball was detected in the video.")
+
+            ball_goal_area_activity = ball_summary.get("ball_goal_area_activity")
+
+            if ball_goal_area_activity and ball_goal_area_activity.get("ball_near_goal_area_detected"):
+                events.append("Ball was detected near goal areas.")
+
+                left_ball_count = ball_goal_area_activity.get("left_goal_area_ball_detections", 0)
+                right_ball_count = ball_goal_area_activity.get("right_goal_area_ball_detections", 0)
+
+                if left_ball_count > 0:
+                    events.append("Ball was detected near the left goal area.")
+
+                if right_ball_count > 0:
+                    events.append("Ball was detected near the right goal area.")
         else:
             info_warnings.append("Ball was not detected in the analyzed frames.")
 
