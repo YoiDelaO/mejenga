@@ -1,6 +1,8 @@
 from pathlib import Path
 import cv2
 from app.utils.model_loader import get_yolo_model, MODEL_NAME
+from app.services.field_zone_service import get_field_zones
+from app.services.goal_area_activity_service import is_point_inside_zone, summarize_goal_area_activity
 
 
 MODEL_NAME = "yolov8n.pt"
@@ -37,6 +39,16 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
     fps = video.get(cv2.CAP_PROP_FPS)
     width = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    field_zones = get_field_zones({"width": width, "height": height})
+    zones = field_zones.get("zones", {})
+
+    left_goal_area = zones.get("left_goal_area")
+    right_goal_area = zones.get("right_goal_area")
+
+    goal_area_activity = {
+        "left_goal_area_detections": 0,
+        "right_goal_area_detections": 0,
+    }
 
     output_filename = f"{video_path.stem}_detected.mp4"
     output_path = OUTPUT_VIDEOS_DIR / output_filename
@@ -72,6 +84,14 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
 
                         x1, y1, x2, y2 = box.xyxy[0]
                         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                        center_x = int((x1 + x2) / 2)
+                        center_y = int((y1 + y2) / 2)
+
+                        if left_goal_area and is_point_inside_zone(center_x, center_y, left_goal_area):
+                            goal_area_activity["left_goal_area_detections"] += 1
+
+                        if right_goal_area and is_point_inside_zone(center_x, center_y, right_goal_area):
+                            goal_area_activity["right_goal_area_detections"] += 1
 
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         cv2.putText(
@@ -124,6 +144,7 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
         analysis_quality = "limited"
 
     needs_admin_review = analysis_quality != "useful" or len(warnings) > 0
+    goal_area_activity_summary = summarize_goal_area_activity(goal_area_activity)
 
     return {
         "detection_available": True,
@@ -138,4 +159,5 @@ def detect_players_in_video(video_path: Path, frame_interval: int = 30) -> dict:
         "warnings": warnings,
         "needs_admin_review": needs_admin_review,
         "processed_video_path": str(output_path),
+        "goal_area_activity": goal_area_activity_summary,
     }
