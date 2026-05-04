@@ -8,6 +8,7 @@ from app.services.goal_area_activity_service import is_point_inside_zone
 
 SPORTS_BALL_CLASS_ID = 32
 MIN_BALL_CONFIDENCE = 0.25
+BALL_MARKER_PERSISTENCE_FRAMES = 12
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 OUTPUT_VIDEOS_DIR = BASE_DIR / "output_videos"
@@ -15,6 +16,38 @@ OUTPUT_VIDEOS_DIR = BASE_DIR / "output_videos"
 
 def ensure_output_folder_exists() -> None:
     OUTPUT_VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def draw_ball_marker(frame, center_x: int, center_y: int, confidence: float | None = None) -> None:
+    # Círculo grande exterior
+    cv2.circle(frame, (center_x, center_y), 28, (0, 0, 255), 4)
+
+    # Círculo interno
+    cv2.circle(frame, (center_x, center_y), 8, (0, 0, 255), -1)
+
+    # Cruz para ubicar mejor la bola
+    cv2.line(frame, (center_x - 35, center_y), (center_x + 35, center_y), (0, 0, 255), 3)
+    cv2.line(frame, (center_x, center_y - 35), (center_x, center_y + 35), (0, 0, 255), 3)
+
+    label = "BALL"
+    if confidence is not None:
+        label = f"BALL {confidence:.2f}"
+
+    text_x = max(center_x - 50, 10)
+    text_y = max(center_y - 45, 30)
+
+    # Fondo oscuro para que el texto se vea mejor
+    cv2.rectangle(frame, (text_x - 5, text_y - 25), (text_x + 120, text_y + 8), (0, 0, 0), -1)
+
+    cv2.putText(
+        frame,
+        label,
+        (text_x, text_y),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.75,
+        (0, 0, 255),
+        3,
+    )
 
 
 def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
@@ -63,6 +96,10 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
     frames_with_ball = 0
     confidence_values = []
 
+    last_ball_position = None
+    last_ball_confidence = None
+    persistence_counter = 0
+
     while True:
         success, frame = video.read()
 
@@ -72,6 +109,7 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
         if frame_index % frame_interval == 0:
             results = model(frame, verbose=False)
             ball_found_in_frame = False
+            best_ball = None
 
             for result in results:
                 for box in result.boxes:
@@ -79,36 +117,47 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
                     confidence = float(box.conf[0])
 
                     if class_id == SPORTS_BALL_CLASS_ID and confidence >= MIN_BALL_CONFIDENCE:
-                        ball_found_in_frame = True
-                        confidence_values.append(confidence)
-
                         x1, y1, x2, y2 = box.xyxy[0]
                         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
                         center_x = int((x1 + x2) / 2)
                         center_y = int((y1 + y2) / 2)
 
-                        if left_goal_area and is_point_inside_zone(center_x, center_y, left_goal_area):
-                            ball_goal_area_activity["left_goal_area_ball_detections"] += 1
+                        if best_ball is None or confidence > best_ball["confidence"]:
+                            best_ball = {
+                                "center_x": center_x,
+                                "center_y": center_y,
+                                "confidence": confidence,
+                            }
 
-                        if right_goal_area and is_point_inside_zone(center_x, center_y, right_goal_area):
-                            ball_goal_area_activity["right_goal_area_ball_detections"] += 1
+            if best_ball:
+                ball_found_in_frame = True
+                confidence_values.append(best_ball["confidence"])
 
-                        cv2.circle(frame, (center_x, center_y), 12, (0, 0, 255), 3)
-                        cv2.putText(
-                            frame,
-                            f"Ball {confidence:.2f}",
-                            (x1, max(y1 - 15, 25)),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.6,
-                            (0, 0, 255),
-                            2,
-                        )
+                center_x = best_ball["center_x"]
+                center_y = best_ball["center_y"]
+                confidence = best_ball["confidence"]
+
+                last_ball_position = (center_x, center_y)
+                last_ball_confidence = confidence
+                persistence_counter = BALL_MARKER_PERSISTENCE_FRAMES
+
+                if left_goal_area and is_point_inside_zone(center_x, center_y, left_goal_area):
+                    ball_goal_area_activity["left_goal_area_ball_detections"] += 1
+
+                if right_goal_area and is_point_inside_zone(center_x, center_y, right_goal_area):
+                    ball_goal_area_activity["right_goal_area_ball_detections"] += 1
 
             frames_analyzed += 1
 
             if ball_found_in_frame:
                 frames_with_ball += 1
+
+        # Mantener la marca visible por varios frames después de detectar la bola
+        if last_ball_position and persistence_counter > 0:
+            center_x, center_y = last_ball_position
+            draw_ball_marker(frame, center_x, center_y, last_ball_confidence)
+            persistence_counter -= 1
 
         writer.write(frame)
         frame_index += 1
@@ -153,6 +202,7 @@ def detect_ball_in_video(video_path: Path, frame_interval: int = 5) -> dict:
         "model": MODEL_NAME,
         "frame_interval": frame_interval,
         "min_ball_confidence": MIN_BALL_CONFIDENCE,
+        "marker_persistence_frames": BALL_MARKER_PERSISTENCE_FRAMES,
         "frames_analyzed": frames_analyzed,
         "frames_with_ball": frames_with_ball,
         "ball_detection_rate": ball_detection_rate,
