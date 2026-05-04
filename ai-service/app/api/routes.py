@@ -13,6 +13,7 @@ from app.services.camera_angle_service import validate_camera_angles, get_camera
 from app.services.file_validation_service import validate_video_file
 from app.services.match_mode_service import validate_match_mode, get_match_mode_metadata
 from app.services.attack_event_service import build_attack_events
+from app.services.danger_event_service import build_danger_events
 
 
 router = APIRouter()
@@ -88,12 +89,12 @@ async def analyze_video(
         if run_ball_detection:
             ball_summary = detect_ball_in_video(saved_video_path)
 
-    needs_review = not video_info["readable"]
-
-    if detection_summary and detection_summary.get("needs_admin_review"):
-        needs_review = True
-
     attack_events = build_attack_events(detection_summary)
+    danger_events = build_danger_events(
+        detection_summary=detection_summary,
+        ball_summary=ball_summary,
+        attack_events=attack_events,
+    )
 
     analysis_events = build_analysis_events(
         video_info=video_info,
@@ -102,6 +103,11 @@ async def analyze_video(
         ball_summary=ball_summary,
         attack_events=attack_events,
     )
+
+    needs_review = not video_info["readable"]
+
+    if detection_summary and detection_summary.get("needs_admin_review"):
+        needs_review = True
 
     if analysis_events.get("overall_status") == "needs_review":
         needs_review = True
@@ -123,6 +129,7 @@ async def analyze_video(
         "ball_summary": ball_summary,
         "analysis_events": analysis_events,
         "attack_events": attack_events,
+        "danger_events": danger_events,
         "needs_review": needs_review,
     }
 
@@ -203,6 +210,11 @@ async def analyze_match(
                 ball_summary = detect_ball_in_video(saved_video_path)
 
         attack_events = build_attack_events(detection_summary)
+        danger_events = build_danger_events(
+            detection_summary=detection_summary,
+            ball_summary=ball_summary,
+            attack_events=attack_events,
+        )
 
         analysis_events = build_analysis_events(
             video_info=video_info,
@@ -226,6 +238,7 @@ async def analyze_match(
             "ball_summary": ball_summary,
             "analysis_events": analysis_events,
             "attack_events": attack_events,
+            "danger_events": danger_events,
         }
 
         camera_results.append(camera_result)
