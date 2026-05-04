@@ -6,7 +6,11 @@ Servicio de inteligencia artificial para la aplicación \*\*Mejengas\*\*.
 
 
 
-Este módulo se encarga de recibir videos de partidos de fútbol, leer información básica del archivo, detectar jugadores, realizar tracking básico, intentar detectar el balón y devolver un resultado en formato JSON.
+Este módulo se encarga de recibir videos de partidos de fútbol, leer información básica del archivo, validar la calidad del video, detectar jugadores, realizar tracking básico, intentar detectar el balón, analizar actividad cerca de zonas de marco y devolver resultados en formato JSON.
+
+
+
+El servicio está diseñado como una capa independiente, por lo que puede ser consumido por una app móvil, una app web, un backend o cualquier cliente que pueda realizar peticiones HTTP.
 
 
 
@@ -18,7 +22,79 @@ El objetivo inicial de este servicio es funcionar como una capa independiente de
 
 
 
-Por ahora, el sistema no toma decisiones finales sobre el resultado de un partido. Su función es apoyar el análisis, generar evidencia visual y ayudar a determinar si un video puede ser útil para revisión.
+Por ahora, el sistema no toma decisiones finales sobre el resultado de un partido. Su función es apoyar el análisis, generar evidencia visual, detectar posibles eventos relevantes y ayudar a determinar si un video puede ser útil para revisión.
+
+
+
+La IA no confirma goles oficialmente en esta etapa. Cuando detecta una posible jugada de gol, la marca como \*\*candidato de gol\*\* y solicita validación con cámaras de marco o revisión posterior.
+
+
+
+\## Compatibilidad
+
+
+
+Este servicio no es exclusivo de Flutter.
+
+
+
+Puede ser consumido por cualquier tecnología que pueda enviar videos y leer respuestas JSON, por ejemplo:
+
+
+
+```text
+
+Flutter
+
+React Native
+
+Ionic
+
+Android nativo
+
+iOS nativo
+
+Aplicaciones web
+
+Backends en Node.js
+
+Backends en Python
+
+Backends en Java
+
+Supabase Edge Functions
+
+Cualquier cliente compatible con APIs REST
+
+```
+
+
+
+Arquitectura general:
+
+
+
+```text
+
+App móvil / App web / Backend
+
+&#x20;       ↓
+
+Mejengas AI Service
+
+&#x20;       ↓
+
+Procesamiento de video e IA
+
+&#x20;       ↓
+
+Respuesta JSON
+
+&#x20;       ↓
+
+La app muestra resultados o decide si requiere revisión
+
+```
 
 
 
@@ -45,6 +121,8 @@ Actualmente el servicio permite:
 \- Guardar resultados del análisis en `output\_json/`.
 
 \- Generar videos procesados en `output\_videos/`.
+
+\- Validar si el archivo subido es realmente un video.
 
 \- Leer información básica del video:
 
@@ -78,7 +156,9 @@ Actualmente el servicio permite:
 
 \- Detectar experimentalmente el balón.
 
-\- Generar video procesado con marca sobre el balón.
+\- Generar video procesado con marca visible sobre el balón.
+
+\- Mantener visible la marca del balón durante varios frames para facilitar revisión visual.
 
 \- Activar o desactivar análisis opcionales mediante parámetros.
 
@@ -104,8 +184,6 @@ Actualmente el servicio permite:
 
 \- Validar ángulos de cámara permitidos.
 
-\- Validar si el archivo subido es realmente un video.
-
 \- Validar modos de partido:
 
 &#x20; - `casual`: no requiere video obligatorio.
@@ -114,7 +192,15 @@ Actualmente el servicio permite:
 
 \- Generar resumen de análisis mediante `analysis\_events`.
 
-\- Generar resumen global del partido mediante `match\_summary`.
+\- Generar eventos básicos de ataque mediante `attack\_events`.
+
+\- Generar eventos de jugada peligrosa mediante `danger\_events`.
+
+\- Generar eventos de posible tiro mediante `shot\_events`.
+
+\- Generar candidatos de gol mediante `goal\_candidate\_events`.
+
+\- Generar resumen simplificado para la app mediante `match\_event\_summary`.
 
 \- Separar advertencias críticas de advertencias informativas.
 
@@ -173,6 +259,18 @@ ai-service/
 &#x20;     event\_service.py
 
 &#x20;     field\_zone\_service.py
+
+&#x20;     goal\_area\_activity\_service.py
+
+&#x20;     attack\_event\_service.py
+
+&#x20;     danger\_event\_service.py
+
+&#x20;     shot\_event\_service.py
+
+&#x20;     goal\_candidate\_service.py
+
+&#x20;     match\_event\_summary\_service.py
 
 &#x20;     match\_analysis\_service.py
 
@@ -360,7 +458,7 @@ Devuelve información de configuración del servicio.
 
 
 
-Este endpoint está pensado para que la app móvil o el backend puedan consultar las opciones disponibles sin tenerlas escritas manualmente.
+Este endpoint está pensado para que una app móvil, app web o backend pueda consultar las opciones disponibles sin tenerlas escritas manualmente.
 
 
 
@@ -500,7 +598,7 @@ run\_ball\_detection = false
 
 
 
-Ejemplo de respuesta:
+Ejemplo de respuesta parcial:
 
 
 
@@ -944,6 +1042,268 @@ Esta configuración permite:
 
 
 
+\## Flujo actual de eventos
+
+
+
+El flujo actual de análisis de eventos funciona de forma progresiva:
+
+
+
+```text
+
+Detección de jugadores
+
+&#x20;       ↓
+
+Actividad cerca de zona de marco
+
+&#x20;       ↓
+
+Eventos de ataque
+
+&#x20;       ↓
+
+Eventos de peligro
+
+&#x20;       ↓
+
+Posible tiro
+
+&#x20;       ↓
+
+Candidato de gol
+
+&#x20;       ↓
+
+Resumen simplificado para la app/backend
+
+```
+
+
+
+\## `attack\_events`
+
+
+
+Resume actividad de jugadores cerca de zonas de marco.
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "attack\_events\_available": true,
+
+&#x20; "possible\_attack\_detected": true,
+
+&#x20; "events": \[
+
+&#x20;   {
+
+&#x20;     "type": "right\_goal\_area\_pressure",
+
+&#x20;     "side": "right",
+
+&#x20;     "confidence": "basic"
+
+&#x20;   }
+
+&#x20; ]
+
+}
+
+```
+
+
+
+\## `danger\_events`
+
+
+
+Combina jugadores cerca del marco con balón cerca del marco.
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "danger\_events\_available": true,
+
+&#x20; "possible\_danger\_play": true,
+
+&#x20; "possible\_shot\_context": true,
+
+&#x20; "players\_near\_goal\_area": true,
+
+&#x20; "ball\_near\_goal\_area": true
+
+}
+
+```
+
+
+
+\## `shot\_events`
+
+
+
+Usa `danger\_events` y detección de balón para marcar un posible contexto de tiro.
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "shot\_events\_available": true,
+
+&#x20; "possible\_shot\_detected": true,
+
+&#x20; "events": \[
+
+&#x20;   {
+
+&#x20;     "type": "possible\_shot\_event",
+
+&#x20;     "side": "right",
+
+&#x20;     "confidence": "basic"
+
+&#x20;   }
+
+&#x20; ]
+
+}
+
+```
+
+
+
+\## `goal\_candidate\_events`
+
+
+
+Marca una posible jugada candidata a gol.
+
+
+
+Este bloque no confirma goles. Solo indica que existe una posible jugada que requiere validación adicional.
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "goal\_candidate\_events\_available": true,
+
+&#x20; "possible\_goal\_candidate\_detected": true,
+
+&#x20; "requires\_goal\_camera\_validation": true,
+
+&#x20; "is\_confirmed\_goal": false,
+
+&#x20; "events": \[
+
+&#x20;   {
+
+&#x20;     "type": "possible\_goal\_candidate",
+
+&#x20;     "side": "right",
+
+&#x20;     "confidence": "basic",
+
+&#x20;     "description": "Possible goal candidate detected near the right goal area. This is not a confirmed goal."
+
+&#x20;   }
+
+&#x20; ]
+
+}
+
+```
+
+
+
+\## `match\_event\_summary`
+
+
+
+Resume los eventos importantes en un bloque más fácil de consumir por una app, web o backend.
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "summary\_available": true,
+
+&#x20; "summary\_status": "goal\_candidate\_review",
+
+&#x20; "has\_attack\_activity": true,
+
+&#x20; "has\_danger\_play": true,
+
+&#x20; "has\_possible\_shot": true,
+
+&#x20; "has\_goal\_candidate": true,
+
+&#x20; "requires\_goal\_camera\_validation": true,
+
+&#x20; "confirmed\_goals": 0,
+
+&#x20; "important\_event\_count": 5
+
+}
+
+```
+
+
+
+Valores posibles de `summary\_status`:
+
+
+
+```text
+
+normal
+
+attack\_activity
+
+danger\_play
+
+possible\_shot
+
+goal\_candidate\_review
+
+```
+
+
+
 \## Archivos generados
 
 
@@ -996,6 +1356,8 @@ Ya permite:
 
 \- Detectar experimentalmente el balón.
 
+\- Mostrar la marca del balón de forma más visible.
+
 \- Exportar resultados en JSON.
 
 \- Analizar múltiples cámaras.
@@ -1004,7 +1366,19 @@ Ya permite:
 
 \- Validar que ranked tenga 4 cámaras.
 
-\- Exponer metadata para integración futura con Flutter o backend.
+\- Exponer metadata para integración futura con apps o backends.
+
+\- Detectar actividad cerca del marco.
+
+\- Generar eventos básicos de ataque.
+
+\- Generar eventos de peligro.
+
+\- Generar posibles eventos de tiro.
+
+\- Generar candidatos de gol sin confirmar gol.
+
+\- Resumir eventos importantes en `match\_event\_summary`.
 
 
 
@@ -1022,13 +1396,17 @@ Ya permite:
 
 \- El sistema todavía no detecta goles oficialmente.
 
-\- El sistema todavía no calcula pases, recuperaciones, tiros o mapas de calor.
+\- El sistema todavía no confirma marcador.
+
+\- El sistema todavía no calcula pases, recuperaciones, atajadas, tiros oficiales o mapas de calor.
 
 \- La IA no debe usarse todavía como juez absoluto del partido.
 
 \- Las zonas de cancha son aproximadas y no detectan todavía los marcos reales.
 
 \- El análisis multicámara todavía no sincroniza eventos por tiempo entre cámaras.
+
+\- Los candidatos de gol todavía requieren validación con cámaras de marco, capitanes o revisión administrativa.
 
 
 
@@ -1046,21 +1424,21 @@ Posibles mejoras futuras:
 
 \- Detectar zonas reales de cancha y porterías.
 
-\- Detectar eventos básicos.
+\- Detectar eventos básicos por tiempo.
 
-\- Detectar posibles tiros o jugadas cerca del marco.
+\- Detectar posibles tiros con mayor precisión.
 
-\- Detectar momentos donde el balón aparece cerca del marco.
+\- Detectar momentos donde el balón aparece cerca de la línea de gol.
 
-\- Crear clips automáticos.
+\- Crear clips automáticos de eventos importantes.
 
 \- Mejorar detección del balón con modelos personalizados.
 
-\- Conectar el servicio con Supabase.
+\- Conectar el servicio con Supabase u otro backend.
 
-\- Enviar resultados al backend de Mejengas.
+\- Enviar resultados al backend principal de Mejengas.
 
-\- Integrar el flujo con Flutter.
+\- Integrar el flujo con una app móvil o web.
 
 \- Calcular estadísticas avanzadas por jugador.
 
