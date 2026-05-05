@@ -98,6 +98,7 @@ def generate_clip_from_video(
 def generate_review_clips(
     video_path: Path,
     review_moments: dict | None,
+    clip_source: dict | None = None,
 ) -> dict:
     if not review_moments:
         return {
@@ -172,6 +173,7 @@ def generate_review_clips(
 
     return {
         "review_clips_available": True,
+        "clip_source": clip_source,
         "clip_count": len(clips),
         "clips": clips,
         "warnings": warnings,

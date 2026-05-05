@@ -130,13 +130,24 @@ async def analyze_video(
     review_moments = build_review_moments(clip_suggestions)
 
     clip_source_video_path = saved_video_path
+    clip_source = {
+        "source_type": "original_video",
+        "source_path": str(saved_video_path),
+        "uses_ball_marker": False,
+    }
 
     if ball_summary and ball_summary.get("processed_ball_video_path"):
         clip_source_video_path = Path(ball_summary.get("processed_ball_video_path"))
+        clip_source = {
+            "source_type": "processed_ball_video",
+            "source_path": ball_summary.get("processed_ball_video_path"),
+            "uses_ball_marker": True,
+        }
 
     review_clips = generate_review_clips(
         video_path=clip_source_video_path,
         review_moments=review_moments,
+        clip_source=clip_source,
     )
 
     analysis_events = build_analysis_events(
@@ -295,13 +306,24 @@ async def analyze_match(
         review_moments = build_review_moments(clip_suggestions)
 
         clip_source_video_path = saved_video_path
+        clip_source = {
+            "source_type": "original_video",
+            "source_path": str(saved_video_path),
+            "uses_ball_marker": False,
+        }
 
         if ball_summary and ball_summary.get("processed_ball_video_path"):
             clip_source_video_path = Path(ball_summary.get("processed_ball_video_path"))
+            clip_source = {
+                "source_type": "processed_ball_video",
+                "source_path": ball_summary.get("processed_ball_video_path"),
+                "uses_ball_marker": True,
+            }
 
         review_clips = generate_review_clips(
             video_path=clip_source_video_path,
             review_moments=review_moments,
+            clip_source=clip_source,
         )
         
         analysis_events = build_analysis_events(
