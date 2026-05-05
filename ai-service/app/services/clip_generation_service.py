@@ -184,14 +184,34 @@ def generate_clip_from_video(
     video.release()
     writer.release()
 
+    overlay_applied = review_moment is not None
+
+    overlay_metadata = None
+
+    if overlay_applied:
+        overlay_metadata = {
+            "style": "compact",
+            "background": "semi_transparent",
+            "position": "top_left",
+            "text_color": "white",
+            "includes": [
+                "main_category",
+                "side",
+                "timestamp",
+                "goal_camera_validation",
+                "goal_status",
+            ],
+        }
+
     return {
         "clip_generated": frames_written > 0,
         "generated_clip_path": str(output_path) if frames_written > 0 else None,
         "start_frame": start_frame,
         "end_frame": end_frame,
         "frames_written": frames_written,
-        "overlay_applied": review_moment is not None,
-        "overlay_type": "basic_review_moment" if review_moment else None,
+        "overlay_applied": overlay_applied,
+        "overlay_type": "basic_review_moment" if overlay_applied else None,
+        "overlay_metadata": overlay_metadata,
     }
 
 
