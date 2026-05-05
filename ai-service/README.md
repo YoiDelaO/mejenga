@@ -1252,6 +1252,15 @@ Ejemplo:
     "confirmed_goals": 0,
     "generated_clip_paths": [
       "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4"
+    ],
+    "generated_clip_urls": [
+      "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4"
+    ],
+    "web_clip_paths": [
+      "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4"
+    ],
+    "web_clip_urls": [
+      "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4"
     ]
   }
 }
@@ -1271,8 +1280,14 @@ uses_ball_marker
 requires_goal_camera_validation
 confirmed_goals
 generated_clip_paths
+generated_clip_urls
+web_clip_paths
+web_clip_urls
 ```
+Para reproducción en navegador, app móvil o frontend web, se recomienda usar:
 
+```text
+review_summary.web_clip_urls
 Valores posibles de `main_reason`:
 
 ```text
