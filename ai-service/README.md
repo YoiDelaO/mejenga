@@ -2,7 +2,7 @@
 
 Servicio de inteligencia artificial para la aplicación **Mejengas**.
 
-Este módulo recibe videos de partidos de fútbol, valida archivos, analiza información básica del video, detecta jugadores, intenta detectar el balón, analiza actividad cerca de zonas de marco, genera eventos deportivos preliminares, sugiere momentos de revisión, genera clips reales de revisión con overlays visuales y devuelve resultados en formato JSON.
+Este módulo recibe videos de partidos de fútbol, valida archivos, analiza información básica del video, detecta jugadores, intenta detectar el balón, analiza actividad cerca de zonas de marco, genera eventos deportivos preliminares, sugiere momentos de revisión, genera clips reales de revisión con overlays visuales, crea un resumen compacto de revisión y devuelve resultados en formato JSON.
 
 El servicio está diseñado como una capa independiente. Puede ser consumido por una app móvil, una app web, un backend o cualquier cliente capaz de enviar archivos por HTTP y leer respuestas JSON.
 
@@ -113,6 +113,8 @@ Actualmente el servicio permite:
 - Indicar mediante `clip_source` si el clip fue generado desde el video original o desde el video procesado con marcador de balón.
 - Indicar mediante `overlay_applied` si el clip recibió overlay visual.
 - Indicar mediante `overlay_type` qué tipo de overlay se aplicó.
+- Indicar mediante `overlay_metadata` el estilo visual del overlay.
+- Generar un resumen compacto para app/backend mediante `review_summary`.
 - Separar advertencias críticas de advertencias informativas.
 
 ## Tecnologías utilizadas
@@ -151,6 +153,7 @@ ai-service/
       clip_suggestion_service.py
       review_moment_service.py
       clip_generation_service.py
+      review_summary_service.py
       match_analysis_service.py
       camera_angle_service.py
       file_validation_service.py
@@ -571,7 +574,9 @@ Overlay visual de revisión
         ↓
 Metadata de fuente del clip
         ↓
-Resumen simplificado para app/backend
+Resumen compacto de revisión
+        ↓
+Respuesta lista para app/backend
 ```
 
 ## `detection_summary`
@@ -1059,9 +1064,9 @@ El servicio puede aplicar un overlay visual básico encima de los clips de revis
 Actualmente el overlay muestra:
 
 ```text
-REVIEW MOMENT
+REVIEW
 Categoría principal | lado
-Timestamp del evento
+Tiempo del evento
 Requisito de validación con cámara de marco
 Estado del gol
 ```
@@ -1069,11 +1074,11 @@ Estado del gol
 Ejemplo visual esperado:
 
 ```text
-REVIEW MOMENT
+REVIEW
 Goal Candidate | Right
-Timestamp: 26.11s
-Goal camera validation required
-Not confirmed goal
+Time: 26.11s
+Needs goal camera review
+Not confirmed
 ```
 
 El overlay se aplica directamente al clip generado y queda indicado en el JSON mediante:
@@ -1098,6 +1103,98 @@ video_ball_review_moment_1_goal_candidate_right_overlay.mp4
 ```
 
 Este overlay ayuda a que el administrador, capitán o revisor pueda entender rápidamente por qué el clip fue marcado como importante.
+
+## `overlay_metadata`
+
+Dentro de `clip_generation`, el sistema incluye metadata del overlay aplicado.
+
+Ejemplo:
+
+```json
+{
+  "overlay_metadata": {
+    "style": "compact",
+    "background": "semi_transparent",
+    "position": "top_left",
+    "text_color": "white",
+    "includes": [
+      "main_category",
+      "side",
+      "timestamp",
+      "goal_camera_validation",
+      "goal_status"
+    ]
+  }
+}
+```
+
+Campos actuales:
+
+```text
+style
+background
+position
+text_color
+includes
+```
+
+Esto permite que la app/backend sepa qué tipo de información visual aparece en el clip generado.
+
+## `review_summary`
+
+`review_summary` es un bloque compacto pensado para que la app, backend o dashboard pueda saber rápidamente si hay algo que revisar.
+
+Este bloque evita que la app tenga que recorrer todo el JSON para saber si debe mostrar una alerta.
+
+Ejemplo:
+
+```json
+{
+  "review_summary": {
+    "review_summary_available": true,
+    "review_required": true,
+    "main_reason": "goal_candidate",
+    "summary_status": "goal_candidate_review",
+    "review_moment_count": 1,
+    "clip_count": 1,
+    "has_overlay_clip": true,
+    "uses_ball_marker": true,
+    "requires_goal_camera_validation": true,
+    "confirmed_goals": 0,
+    "generated_clip_paths": [
+      "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4"
+    ]
+  }
+}
+```
+
+Campos principales:
+
+```text
+review_summary_available
+review_required
+main_reason
+summary_status
+review_moment_count
+clip_count
+has_overlay_clip
+uses_ball_marker
+requires_goal_camera_validation
+confirmed_goals
+generated_clip_paths
+```
+
+Valores posibles de `main_reason`:
+
+```text
+normal
+danger_play
+possible_shot
+goal_candidate
+review_moment
+```
+
+Este bloque es especialmente útil para pantallas de administración, notificaciones internas o flujos donde la app solo necesita saber si debe abrir una revisión.
 
 ## Fuente usada para generar `review_clips`
 
@@ -1204,6 +1301,8 @@ Ya permite:
 - Indicar la fuente del clip mediante `clip_source`.
 - Generar clips de revisión desde el video con marcador de balón cuando está disponible.
 - Aplicar overlay visual básico a clips de revisión.
+- Documentar metadata visual del overlay mediante `overlay_metadata`.
+- Generar un resumen compacto de revisión mediante `review_summary`.
 
 ## Limitaciones actuales
 
@@ -1222,6 +1321,7 @@ Ya permite:
 - `clip_source` solo indica la fuente usada; todavía no combina varias fuentes visuales en un mismo clip.
 - El overlay actual es básico y no incluye todavía marcador oficial, nombres de jugadores, IDs de tracking, logos ni explicación visual avanzada.
 - El overlay actual se aplica sobre todo el clip generado.
+- `review_summary` resume el estado de revisión, pero no reemplaza los bloques detallados del análisis.
 
 ## Próximos pasos
 
