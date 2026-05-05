@@ -45,58 +45,74 @@ def draw_review_overlay(frame, moment: dict | None) -> None:
 
     side_label = format_label_value(side)
 
-    timestamp_label = "Timestamp: unknown"
+    timestamp_label = "Time: unknown"
     if primary_timestamp is not None:
-        timestamp_label = f"Timestamp: {primary_timestamp:.2f}s"
+        timestamp_label = f"Time: {primary_timestamp:.2f}s"
 
-    validation_label = "Goal camera validation required"
+    validation_label = "Needs goal camera review"
     if not requires_goal_camera_validation:
-        validation_label = "Goal camera validation not required"
+        validation_label = "No goal camera review needed"
 
     goal_status_label = "Confirmed goal"
     if not is_confirmed_goal:
-        goal_status_label = "Not confirmed goal"
+        goal_status_label = "Not confirmed"
 
     overlay_lines = [
-        "REVIEW MOMENT",
+        "REVIEW",
         f"{main_category} | {side_label}",
         timestamp_label,
         validation_label,
         goal_status_label,
     ]
 
-    x = 20
-    y = 30
-    line_height = 28
-    box_width = 430
-    box_height = 25 + (len(overlay_lines) * line_height)
+    frame_height, frame_width = frame.shape[:2]
+
+    x = 16
+    y = 26
+    line_height = 22
+    padding_x = 12
+    padding_y = 12
+
+    font_scale_title = 0.65
+    font_scale_text = 0.52
+    title_thickness = 2
+    text_thickness = 1
+
+    box_width = min(330, frame_width - 30)
+    box_height = padding_y * 2 + (len(overlay_lines) * line_height)
+
+    overlay = frame.copy()
 
     cv2.rectangle(
-        frame,
-        (x - 10, y - 25),
-        (x + box_width, y + box_height),
+        overlay,
+        (x, y - 18),
+        (x + box_width, y - 18 + box_height),
         (0, 0, 0),
         -1,
     )
 
+    alpha = 0.65
+    cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
     for index, line in enumerate(overlay_lines):
         line_y = y + (index * line_height)
 
-        font_scale = 0.75
-        thickness = 2
+        font_scale = font_scale_text
+        thickness = text_thickness
 
         if index == 0:
-            font_scale = 0.85
-            thickness = 3
+            font_scale = font_scale_title
+            thickness = title_thickness
 
         cv2.putText(
             frame,
             line,
-            (x, line_y),
+            (x + padding_x, line_y),
             cv2.FONT_HERSHEY_SIMPLEX,
             font_scale,
             (255, 255, 255),
             thickness,
+            cv2.LINE_AA,
         )
 
 
