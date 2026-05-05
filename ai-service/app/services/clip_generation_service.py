@@ -21,11 +21,91 @@ def sanitize_clip_name(value: str) -> str:
     return safe_value
 
 
+def format_label_value(value: str | None) -> str:
+    if not value:
+        return "Unknown"
+
+    return value.replace("_", " ").title()
+
+
+def draw_review_overlay(frame, moment: dict | None) -> None:
+    if not moment:
+        return
+
+    main_category = format_label_value(moment.get("main_category"))
+    primary_timestamp = moment.get("primary_timestamp_seconds")
+    requires_goal_camera_validation = moment.get("requires_goal_camera_validation", False)
+    is_confirmed_goal = moment.get("is_confirmed_goal", False)
+
+    side = "unknown"
+    events = moment.get("events", [])
+
+    if events:
+        side = events[0].get("side", "unknown")
+
+    side_label = format_label_value(side)
+
+    timestamp_label = "Timestamp: unknown"
+    if primary_timestamp is not None:
+        timestamp_label = f"Timestamp: {primary_timestamp:.2f}s"
+
+    validation_label = "Goal camera validation required"
+    if not requires_goal_camera_validation:
+        validation_label = "Goal camera validation not required"
+
+    goal_status_label = "Confirmed goal"
+    if not is_confirmed_goal:
+        goal_status_label = "Not confirmed goal"
+
+    overlay_lines = [
+        "REVIEW MOMENT",
+        f"{main_category} | {side_label}",
+        timestamp_label,
+        validation_label,
+        goal_status_label,
+    ]
+
+    x = 20
+    y = 30
+    line_height = 28
+    box_width = 430
+    box_height = 25 + (len(overlay_lines) * line_height)
+
+    cv2.rectangle(
+        frame,
+        (x - 10, y - 25),
+        (x + box_width, y + box_height),
+        (0, 0, 0),
+        -1,
+    )
+
+    for index, line in enumerate(overlay_lines):
+        line_y = y + (index * line_height)
+
+        font_scale = 0.75
+        thickness = 2
+
+        if index == 0:
+            font_scale = 0.85
+            thickness = 3
+
+        cv2.putText(
+            frame,
+            line,
+            (x, line_y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            (255, 255, 255),
+            thickness,
+        )
+
+
 def generate_clip_from_video(
     video_path: Path,
     start_time_seconds: float,
     end_time_seconds: float,
     output_path: Path,
+    review_moment: dict | None = None,
 ) -> dict:
     video = cv2.VideoCapture(str(video_path))
 
@@ -79,6 +159,8 @@ def generate_clip_from_video(
         if not success:
             break
 
+        draw_review_overlay(frame, review_moment)
+
         writer.write(frame)
         frames_written += 1
         current_frame += 1
@@ -92,6 +174,8 @@ def generate_clip_from_video(
         "start_frame": start_frame,
         "end_frame": end_frame,
         "frames_written": frames_written,
+        "overlay_applied": review_moment is not None,
+        "overlay_type": "basic_review_moment" if review_moment else None,
     }
 
 
@@ -103,6 +187,7 @@ def generate_review_clips(
     if not review_moments:
         return {
             "review_clips_available": False,
+            "clip_source": clip_source,
             "clip_count": 0,
             "clips": [],
             "warnings": ["Review moments are required to generate review clips."],
@@ -111,6 +196,7 @@ def generate_review_clips(
     if not review_moments.get("review_moments_available", False):
         return {
             "review_clips_available": False,
+            "clip_source": clip_source,
             "clip_count": 0,
             "clips": [],
             "warnings": ["Review moments are not available."],
@@ -142,7 +228,7 @@ def generate_review_clips(
         safe_side = sanitize_clip_name(side)
 
         output_filename = (
-            f"{video_path.stem}_{safe_moment_id}_{safe_category}_{safe_side}.mp4"
+            f"{video_path.stem}_{safe_moment_id}_{safe_category}_{safe_side}_overlay.mp4"
         )
         output_path = OUTPUT_VIDEOS_DIR / output_filename
 
@@ -151,6 +237,7 @@ def generate_review_clips(
             start_time_seconds=start_time_seconds,
             end_time_seconds=end_time_seconds,
             output_path=output_path,
+            review_moment=moment,
         )
 
         clips.append(
