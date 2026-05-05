@@ -20,6 +20,7 @@ from app.services.match_event_summary_service import build_match_event_summary
 from app.services.clip_suggestion_service import build_clip_suggestions
 from app.services.review_moment_service import build_review_moments
 from app.services.clip_generation_service import generate_review_clips
+from pathlib import Path
 
 
 router = APIRouter()
@@ -128,8 +129,13 @@ async def analyze_video(
 
     review_moments = build_review_moments(clip_suggestions)
 
+    clip_source_video_path = saved_video_path
+
+    if ball_summary and ball_summary.get("processed_ball_video_path"):
+        clip_source_video_path = Path(ball_summary.get("processed_ball_video_path"))
+
     review_clips = generate_review_clips(
-        video_path=saved_video_path,
+        video_path=clip_source_video_path,
         review_moments=review_moments,
     )
 
@@ -288,11 +294,16 @@ async def analyze_match(
 
         review_moments = build_review_moments(clip_suggestions)
 
+        clip_source_video_path = saved_video_path
+
+        if ball_summary and ball_summary.get("processed_ball_video_path"):
+            clip_source_video_path = Path(ball_summary.get("processed_ball_video_path"))
+
         review_clips = generate_review_clips(
-            video_path=saved_video_path,
+            video_path=clip_source_video_path,
             review_moments=review_moments,
         )
-
+        
         analysis_events = build_analysis_events(
             video_info=video_info,
             detection_summary=detection_summary,
