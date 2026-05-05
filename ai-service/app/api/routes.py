@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 
 from app.utils.file_utils import save_uploaded_video, save_analysis_json
 from app.services.video_processor import get_video_info
@@ -22,6 +22,7 @@ from app.services.review_moment_service import build_review_moments
 from app.services.clip_generation_service import generate_review_clips
 from pathlib import Path
 from app.services.review_summary_service import build_review_summary
+
 
 
 router = APIRouter()
@@ -62,6 +63,7 @@ def get_metadata():
 
 @router.post("/analyze-video")
 async def analyze_video(
+    request: Request,
     file: UploadFile = File(...),
     run_detection: bool = True,
     run_tracking: bool = False,
@@ -155,6 +157,7 @@ async def analyze_video(
         match_event_summary=match_event_summary,
         review_moments=review_moments,
         review_clips=review_clips,
+        base_url=str(request.base_url),
     )
 
     analysis_events = build_analysis_events(
@@ -212,6 +215,7 @@ async def analyze_video(
 
 @router.post("/analyze-match")
 async def analyze_match(
+     request: Request,
     cam_1: UploadFile = File(...),
     cam_2: UploadFile | None = File(None),
     cam_3: UploadFile | None = File(None),
@@ -338,6 +342,7 @@ async def analyze_match(
             match_event_summary=match_event_summary,
             review_moments=review_moments,
             review_clips=review_clips,
+            base_url=str(request.base_url),
         )
         
         analysis_events = build_analysis_events(
