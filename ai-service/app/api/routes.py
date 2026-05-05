@@ -19,6 +19,7 @@ from app.services.goal_candidate_service import build_goal_candidate_events
 from app.services.match_event_summary_service import build_match_event_summary
 from app.services.clip_suggestion_service import build_clip_suggestions
 from app.services.review_moment_service import build_review_moments
+from app.services.clip_generation_service import generate_review_clips
 
 
 router = APIRouter()
@@ -127,6 +128,11 @@ async def analyze_video(
 
     review_moments = build_review_moments(clip_suggestions)
 
+    review_clips = generate_review_clips(
+        video_path=saved_video_path,
+        review_moments=review_moments,
+    )
+
     analysis_events = build_analysis_events(
         video_info=video_info,
         detection_summary=detection_summary,
@@ -169,6 +175,7 @@ async def analyze_video(
         "match_event_summary": match_event_summary,
         "clip_suggestions": clip_suggestions,
         "review_moments": review_moments,
+        "review_clips": review_clips,
         "needs_review": needs_review,
     }
 
@@ -281,6 +288,11 @@ async def analyze_match(
 
         review_moments = build_review_moments(clip_suggestions)
 
+        review_clips = generate_review_clips(
+            video_path=saved_video_path,
+            review_moments=review_moments,
+        )
+
         analysis_events = build_analysis_events(
             video_info=video_info,
             detection_summary=detection_summary,
@@ -312,6 +324,7 @@ async def analyze_match(
             "match_event_summary": match_event_summary,
             "clip_suggestions": clip_suggestions,
             "review_moments": review_moments,
+            "review_clips": review_clips,
         }
 
         camera_results.append(camera_result)
