@@ -218,6 +218,8 @@ Actualmente el servicio permite:
 
 \- Generar archivos MP4 reales de revisión mediante `review\_clips`.
 
+\- Generar clips de revisión desde el video procesado con marcador de balón cuando `run\_ball\_detection=true`.
+
 \- Separar advertencias críticas de advertencias informativas.
 
 
@@ -1296,6 +1298,26 @@ Ejemplo de balón cerca del área derecha:
 
 
 
+Cuando `run\_ball\_detection=true`, el sistema también genera un video procesado con marcador visual del balón. Este archivo se indica en:
+
+
+
+```json
+
+{
+
+&#x20; "processed\_ball\_video\_path": "output\_videos/video\_ball.mp4"
+
+}
+
+```
+
+
+
+Ese video puede usarse como fuente para clips de revisión, de modo que el clip final muestre la marca visual del balón.
+
+
+
 \## `attack\_events`
 
 
@@ -1934,7 +1956,7 @@ Ejemplo:
 
 &#x20;       "clip\_generated": true,
 
-&#x20;       "generated\_clip\_path": "output\_videos/video\_review\_moment\_1\_goal\_candidate\_right.mp4",
+&#x20;       "generated\_clip\_path": "output\_videos/video\_ball\_review\_moment\_1\_goal\_candidate\_right.mp4",
 
 &#x20;       "start\_frame": 677,
 
@@ -1958,7 +1980,93 @@ Este bloque permite que una app o backend use directamente el clip generado para
 
 
 
-Actualmente los clips se generan desde el video original cargado. Más adelante se puede decidir si se generan desde el video original, desde el video con detecciones, desde el video con marca de balón, o desde una combinación visual más avanzada.
+\## Fuente usada para generar `review\_clips`
+
+
+
+El servicio puede generar clips desde diferentes versiones del video.
+
+
+
+Actualmente la prioridad es:
+
+
+
+```text
+
+1\. Video procesado con marcador del balón, si existe.
+
+2\. Video original subido, si no existe video procesado con balón.
+
+```
+
+
+
+Eso significa que si se ejecuta:
+
+
+
+```text
+
+run\_ball\_detection = true
+
+```
+
+
+
+y el sistema genera:
+
+
+
+```text
+
+processed\_ball\_video\_path
+
+```
+
+
+
+entonces `review\_clips` se genera desde ese video procesado. Por eso el clip final puede incluir el tracker rojo del balón.
+
+
+
+Ejemplo de ruta esperada:
+
+
+
+```text
+
+output\_videos/video\_ball\_review\_moment\_1\_goal\_candidate\_right.mp4
+
+```
+
+
+
+Esto mejora la revisión visual porque el administrador, capitán o sistema de revisión puede ver no solo el tramo del partido, sino también la marca visual que explica por qué la IA detectó una posible jugada importante.
+
+
+
+Si `run\_ball\_detection=false`, el clip se genera desde el video original.
+
+
+
+Más adelante se puede decidir si los clips deben generarse desde:
+
+
+
+```text
+
+video original
+
+video con detección de jugadores
+
+video con tracking
+
+video con marca del balón
+
+video combinado con overlays avanzados
+
+```
 
 
 
@@ -2074,6 +2182,8 @@ Ya permite:
 
 \- Generar clips reales de revisión en `review\_clips`.
 
+\- Generar clips de revisión desde el video con marcador de balón cuando está disponible.
+
 
 
 \## Limitaciones actuales
@@ -2102,9 +2212,9 @@ Ya permite:
 
 \- Los candidatos de gol todavía requieren validación con cámaras de marco, capitanes o revisión administrativa.
 
-\- Los clips reales de revisión se generan desde el video original, no necesariamente desde videos anotados.
+\- Los clips generados todavía no incluyen overlays avanzados, marcador oficial, etiquetas de jugadores ni explicación visual automática.
 
-\- Los clips generados todavía no incluyen overlays adicionales, marcador, etiquetas ni explicación visual automática.
+\- Los clips con marcador de balón dependen de que `run\_ball\_detection=true` y de que exista `processed\_ball\_video\_path`.
 
 
 
@@ -2128,9 +2238,9 @@ Posibles mejoras futuras:
 
 \- Detectar momentos donde el balón aparece cerca de la línea de gol.
 
-\- Generar clips con overlays visuales.
+\- Generar clips con overlays visuales avanzados.
 
-\- Generar clips desde videos procesados con detecciones o marca de balón.
+\- Generar clips desde videos procesados con jugadores y balón al mismo tiempo.
 
 \- Mejorar detección del balón con modelos personalizados.
 
