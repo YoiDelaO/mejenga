@@ -220,6 +220,8 @@ Actualmente el servicio permite:
 
 \- Generar clips de revisión desde el video procesado con marcador de balón cuando `run\_ball\_detection=true`.
 
+\- Indicar mediante `clip\_source` si el clip fue generado desde el video original o desde el video procesado con marcador de balón.
+
 \- Separar advertencias críticas de advertencias informativas.
 
 
@@ -1128,6 +1130,10 @@ Clips reales de revisión
 
 &#x20;       ↓
 
+Metadata de fuente del clip
+
+&#x20;       ↓
+
 Resumen simplificado para app/backend
 
 ```
@@ -1980,6 +1986,112 @@ Este bloque permite que una app o backend use directamente el clip generado para
 
 
 
+\## `clip\_source`
+
+
+
+Dentro de `review\_clips`, el sistema incluye metadata para indicar desde cuál video se generaron los clips.
+
+
+
+Esto evita que la app o backend tenga que adivinar la fuente revisando el nombre del archivo.
+
+
+
+Ejemplo cuando `run\_ball\_detection=true` y existe video procesado con marcador de balón:
+
+
+
+```json
+
+{
+
+&#x20; "review\_clips": {
+
+&#x20;   "review\_clips\_available": true,
+
+&#x20;   "clip\_source": {
+
+&#x20;     "source\_type": "processed\_ball\_video",
+
+&#x20;     "source\_path": "output\_videos/video\_ball.mp4",
+
+&#x20;     "uses\_ball\_marker": true
+
+&#x20;   },
+
+&#x20;   "clip\_count": 1
+
+&#x20; }
+
+}
+
+```
+
+
+
+Ejemplo cuando `run\_ball\_detection=false` o no existe video procesado con balón:
+
+
+
+```json
+
+{
+
+&#x20; "review\_clips": {
+
+&#x20;   "review\_clips\_available": true,
+
+&#x20;   "clip\_source": {
+
+&#x20;     "source\_type": "original\_video",
+
+&#x20;     "source\_path": "input\_videos/video\_original.mp4",
+
+&#x20;     "uses\_ball\_marker": false
+
+&#x20;   },
+
+&#x20;   "clip\_count": 0
+
+&#x20; }
+
+}
+
+```
+
+
+
+Valores actuales de `source\_type`:
+
+
+
+```text
+
+original\_video
+
+processed\_ball\_video
+
+```
+
+
+
+Campos principales:
+
+
+
+```text
+
+source\_type
+
+source\_path
+
+uses\_ball\_marker
+
+```
+
+
+
 \## Fuente usada para generar `review\_clips`
 
 
@@ -2182,6 +2294,8 @@ Ya permite:
 
 \- Generar clips reales de revisión en `review\_clips`.
 
+\- Indicar la fuente del clip mediante `clip\_source`.
+
 \- Generar clips de revisión desde el video con marcador de balón cuando está disponible.
 
 
@@ -2215,6 +2329,8 @@ Ya permite:
 \- Los clips generados todavía no incluyen overlays avanzados, marcador oficial, etiquetas de jugadores ni explicación visual automática.
 
 \- Los clips con marcador de balón dependen de que `run\_ball\_detection=true` y de que exista `processed\_ball\_video\_path`.
+
+\- `clip\_source` solo indica la fuente usada; todavía no combina varias fuentes visuales en un mismo clip.
 
 
 
