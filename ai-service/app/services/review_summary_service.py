@@ -29,7 +29,11 @@ def build_review_summary(
     clip_count = 0
     has_overlay_clip = False
     uses_ball_marker = False
+
     generated_clip_paths = []
+    generated_clip_urls = []
+    web_clip_paths = []
+    web_clip_urls = []
 
     if review_clips:
         clip_count = review_clips.get("clip_count", 0)
@@ -46,6 +50,20 @@ def build_review_summary(
             generated_clip_path = clip_generation.get("generated_clip_path")
             if generated_clip_path:
                 generated_clip_paths.append(generated_clip_path)
+
+            generated_clip_url = clip_generation.get("generated_clip_url")
+            if generated_clip_url:
+                generated_clip_urls.append(generated_clip_url)
+
+            web_clip = clip_generation.get("web_clip", {})
+            web_clip_path = web_clip.get("web_clip_path")
+            web_clip_url = web_clip.get("web_clip_url")
+
+            if web_clip_path:
+                web_clip_paths.append(web_clip_path)
+
+            if web_clip_url:
+                web_clip_urls.append(web_clip_url)
 
     review_required = (
         has_goal_candidate
@@ -81,4 +99,7 @@ def build_review_summary(
         "requires_goal_camera_validation": requires_goal_camera_validation,
         "confirmed_goals": confirmed_goals,
         "generated_clip_paths": generated_clip_paths,
+        "generated_clip_urls": generated_clip_urls,
+        "web_clip_paths": web_clip_paths,
+        "web_clip_urls": web_clip_urls,
     }
