@@ -2,7 +2,7 @@
 
 Servicio de inteligencia artificial para la aplicación **Mejengas**.
 
-Este módulo recibe videos de partidos de fútbol, valida archivos, analiza información básica del video, detecta jugadores, intenta detectar el balón, analiza actividad cerca de zonas de marco, genera eventos deportivos preliminares, sugiere momentos de revisión, genera clips reales de revisión con overlays visuales, crea un resumen compacto de revisión y devuelve resultados en formato JSON.
+Este módulo recibe videos de partidos de fútbol, valida archivos, analiza información básica del video, detecta jugadores, intenta detectar el balón, analiza actividad cerca de zonas de marco, genera eventos deportivos preliminares, sugiere momentos de revisión, genera clips reales de revisión con overlays visuales, crea versiones web compatibles de los clips, genera un resumen compacto de revisión y devuelve resultados en formato JSON.
 
 El servicio está diseñado como una capa independiente. Puede ser consumido por una app móvil, una app web, un backend o cualquier cliente capaz de enviar archivos por HTTP y leer respuestas JSON.
 
@@ -45,7 +45,7 @@ Procesamiento de video e IA
         ↓
 Respuesta JSON
         ↓
-La app muestra resultados o decide si requiere revisión
+La app muestra resultados, clips o decide si requiere revisión
 ```
 
 ## Funcionalidades actuales
@@ -57,11 +57,14 @@ Actualmente el servicio permite:
 - Consultar configuración general mediante `/metadata`.
 - Subir videos mediante `/analyze-video`.
 - Analizar partidos con múltiples cámaras mediante `/analyze-match`.
+- Servir videos generados mediante `/output-videos`.
 - Guardar videos en `input_videos/`.
 - Guardar resultados del análisis en `output_json/`.
 - Generar videos procesados en `output_videos/`.
 - Generar clips reales de revisión en `output_videos/`.
 - Generar clips de revisión con overlay visual.
+- Generar una versión web compatible del clip usando H.264.
+- Devolver una URL reproducible del clip mediante `web_clip_url`.
 - Validar si el archivo subido es realmente un video.
 - Leer información básica del video:
   - FPS.
@@ -114,6 +117,7 @@ Actualmente el servicio permite:
 - Indicar mediante `overlay_applied` si el clip recibió overlay visual.
 - Indicar mediante `overlay_type` qué tipo de overlay se aplicó.
 - Indicar mediante `overlay_metadata` el estilo visual del overlay.
+- Indicar mediante `web_clip` si se generó una versión compatible para navegador/app.
 - Generar un resumen compacto para app/backend mediante `review_summary`.
 - Separar advertencias críticas de advertencias informativas.
 
@@ -126,6 +130,8 @@ Actualmente el servicio permite:
 - Ultralytics YOLO
 - Pydantic
 - NumPy
+- imageio-ffmpeg
+- FFmpeg
 
 ## Estructura del proyecto
 
@@ -229,6 +235,7 @@ GET  /health
 GET  /metadata
 POST /analyze-video
 POST /analyze-match
+GET  /output-videos/{filename}
 ```
 
 ## GET `/health`
@@ -293,6 +300,30 @@ Ejemplo parcial de respuesta:
   }
 }
 ```
+
+## GET `/output-videos/{filename}`
+
+Sirve archivos generados dentro de la carpeta:
+
+```text
+output_videos/
+```
+
+Este endpoint permite reproducir o descargar clips generados por la API.
+
+Ejemplo:
+
+```text
+http://127.0.0.1:8000/output-videos/video_overlay_web.mp4
+```
+
+Para navegador, app móvil o frontend web, se recomienda usar:
+
+```text
+web_clip.web_clip_url
+```
+
+No se recomienda usar `generated_clip_url` como primera opción para reproducción web, porque el clip original puede estar codificado con un formato que algunos navegadores no reproducen correctamente.
 
 ## POST `/analyze-video`
 
@@ -571,6 +602,8 @@ Momentos agrupados de revisión
 Clips reales de revisión
         ↓
 Overlay visual de revisión
+        ↓
+Conversión a clip web H.264
         ↓
 Metadata de fuente del clip
         ↓
@@ -991,6 +1024,7 @@ Ejemplo:
       "clip_generation": {
         "clip_generated": true,
         "generated_clip_path": "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
+        "generated_clip_url": "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
         "start_frame": 677,
         "end_frame": 795,
         "frames_written": 119,
@@ -1140,6 +1174,61 @@ includes
 
 Esto permite que la app/backend sepa qué tipo de información visual aparece en el clip generado.
 
+## `web_clip`
+
+`web_clip` es la versión compatible para navegador, app o frontend web.
+
+El clip original generado por OpenCV puede no reproducirse correctamente en algunos navegadores. Por eso el servicio genera una segunda versión usando H.264 y formato de píxel `yuv420p`.
+
+Ejemplo:
+
+```json
+{
+  "web_clip": {
+    "web_clip_generated": true,
+    "web_clip_path": "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4",
+    "web_clip_url": "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4",
+    "codec": "h264",
+    "pixel_format": "yuv420p"
+  }
+}
+```
+
+Campos principales:
+
+```text
+web_clip_generated
+web_clip_path
+web_clip_url
+codec
+pixel_format
+```
+
+Para navegador, app móvil o frontend web, se debe usar:
+
+```text
+web_clip.web_clip_url
+```
+
+Ejemplo:
+
+```text
+http://127.0.0.1:8000/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4
+```
+
+Regla recomendada:
+
+```text
+Para reproducción en navegador/app:
+usar web_clip_url.
+
+Para depuración local:
+usar web_clip_path.
+
+Para referencia al clip original:
+usar generated_clip_path o generated_clip_url.
+```
+
 ## `review_summary`
 
 `review_summary` es un bloque compacto pensado para que la app, backend o dashboard pueda saber rápidamente si hay algo que revisar.
@@ -1227,6 +1316,12 @@ Ejemplo de ruta esperada:
 output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4
 ```
 
+Luego se genera una versión web:
+
+```text
+output_videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4
+```
+
 Esto mejora la revisión visual porque el administrador, capitán o sistema de revisión puede ver no solo el tramo del partido, sino también la marca visual que explica por qué la IA detectó una posible jugada importante.
 
 Si `run_ball_detection=false`, el clip se genera desde el video original.
@@ -1260,6 +1355,7 @@ Videos con tracking
 Videos con marca del balón
 Clips reales de revisión
 Clips reales de revisión con overlay
+Clips web compatibles en H.264
 Resultados JSON del análisis
 ```
 
@@ -1285,6 +1381,7 @@ Ya permite:
 - Diferenciar entre modo casual y modo ranked.
 - Validar que ranked tenga 4 cámaras.
 - Exponer metadata para integración futura con apps o backends.
+- Servir archivos generados mediante `/output-videos`.
 - Detectar actividad de jugadores cerca del marco.
 - Detectar actividad del balón cerca del marco.
 - Registrar timestamps de jugadores y balón.
@@ -1302,6 +1399,7 @@ Ya permite:
 - Generar clips de revisión desde el video con marcador de balón cuando está disponible.
 - Aplicar overlay visual básico a clips de revisión.
 - Documentar metadata visual del overlay mediante `overlay_metadata`.
+- Convertir clips de revisión a versión web H.264 mediante `web_clip`.
 - Generar un resumen compacto de revisión mediante `review_summary`.
 
 ## Limitaciones actuales
@@ -1322,6 +1420,7 @@ Ya permite:
 - El overlay actual es básico y no incluye todavía marcador oficial, nombres de jugadores, IDs de tracking, logos ni explicación visual avanzada.
 - El overlay actual se aplica sobre todo el clip generado.
 - `review_summary` resume el estado de revisión, pero no reemplaza los bloques detallados del análisis.
+- `web_clip` mejora la reproducción web, pero todavía no gestiona almacenamiento remoto ni URLs públicas externas.
 
 ## Próximos pasos
 
