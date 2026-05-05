@@ -6,7 +6,7 @@ Servicio de inteligencia artificial para la aplicación \*\*Mejengas\*\*.
 
 
 
-Este módulo recibe videos de partidos de fútbol, valida archivos, analiza información básica del video, detecta jugadores, intenta detectar el balón, analiza actividad cerca de zonas de marco, genera eventos deportivos preliminares y devuelve resultados en formato JSON.
+Este módulo recibe videos de partidos de fútbol, valida archivos, analiza información básica del video, detecta jugadores, intenta detectar el balón, analiza actividad cerca de zonas de marco, genera eventos deportivos preliminares, sugiere momentos de revisión, genera clips reales de revisión y devuelve resultados en formato JSON.
 
 
 
@@ -122,6 +122,8 @@ Actualmente el servicio permite:
 
 \- Generar videos procesados en `output\_videos/`.
 
+\- Generar clips reales de revisión en `output\_videos/`.
+
 \- Validar si el archivo subido es realmente un video.
 
 \- Leer información básica del video:
@@ -214,6 +216,8 @@ Actualmente el servicio permite:
 
 \- Agrupar clips repetidos en momentos únicos mediante `review\_moments`.
 
+\- Generar archivos MP4 reales de revisión mediante `review\_clips`.
+
 \- Separar advertencias críticas de advertencias informativas.
 
 
@@ -287,6 +291,8 @@ ai-service/
 &#x20;     clip\_suggestion\_service.py
 
 &#x20;     review\_moment\_service.py
+
+&#x20;     clip\_generation\_service.py
 
 &#x20;     match\_analysis\_service.py
 
@@ -1116,6 +1122,10 @@ Momentos agrupados de revisión
 
 &#x20;       ↓
 
+Clips reales de revisión
+
+&#x20;       ↓
+
 Resumen simplificado para app/backend
 
 ```
@@ -1334,7 +1344,7 @@ Combina jugadores cerca del marco con balón cerca del marco.
 
 
 
-Además, ahora puede correlacionar timestamps para verificar si jugadores y balón estuvieron cerca del marco en una ventana de tiempo cercana.
+Además, puede correlacionar timestamps para verificar si jugadores y balón estuvieron cerca del marco en una ventana de tiempo cercana.
 
 
 
@@ -1848,7 +1858,107 @@ Ejemplo:
 
 
 
-Este bloque es el más útil para mostrar “momentos importantes” al usuario final o a una pantalla administrativa de revisión.
+Este bloque es útil para mostrar “momentos importantes” al usuario final o a una pantalla administrativa de revisión.
+
+
+
+\## `review\_clips`
+
+
+
+Genera clips reales en formato `.mp4` a partir de los `review\_moments`.
+
+
+
+El sistema toma el rango sugerido del momento de revisión:
+
+
+
+```text
+
+start\_time\_seconds
+
+end\_time\_seconds
+
+```
+
+
+
+y crea un archivo de video corto dentro de:
+
+
+
+```text
+
+output\_videos/
+
+```
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "review\_clips\_available": true,
+
+&#x20; "clip\_count": 1,
+
+&#x20; "clips": \[
+
+&#x20;   {
+
+&#x20;     "review\_moment\_id": "review\_moment\_1",
+
+&#x20;     "main\_category": "goal\_candidate",
+
+&#x20;     "side": "right",
+
+&#x20;     "primary\_timestamp\_seconds": 26.11,
+
+&#x20;     "start\_time\_seconds": 23.11,
+
+&#x20;     "end\_time\_seconds": 27.16,
+
+&#x20;     "duration\_seconds": 4.05,
+
+&#x20;     "requires\_goal\_camera\_validation": true,
+
+&#x20;     "is\_confirmed\_goal": false,
+
+&#x20;     "clip\_generation": {
+
+&#x20;       "clip\_generated": true,
+
+&#x20;       "generated\_clip\_path": "output\_videos/video\_review\_moment\_1\_goal\_candidate\_right.mp4",
+
+&#x20;       "start\_frame": 677,
+
+&#x20;       "end\_frame": 795,
+
+&#x20;       "frames\_written": 119
+
+&#x20;     }
+
+&#x20;   }
+
+&#x20; ]
+
+}
+
+```
+
+
+
+Este bloque permite que una app o backend use directamente el clip generado para revisión visual.
+
+
+
+Actualmente los clips se generan desde el video original cargado. Más adelante se puede decidir si se generan desde el video original, desde el video con detecciones, desde el video con marca de balón, o desde una combinación visual más avanzada.
 
 
 
@@ -1867,6 +1977,28 @@ input\_videos/
 output\_videos/
 
 output\_json/
+
+```
+
+
+
+Tipos de archivos generados:
+
+
+
+```text
+
+Videos originales subidos
+
+Videos con detección de jugadores
+
+Videos con tracking
+
+Videos con marca del balón
+
+Clips reales de revisión
+
+Resultados JSON del análisis
 
 ```
 
@@ -1940,6 +2072,8 @@ Ya permite:
 
 \- Agrupar clips repetidos en `review\_moments`.
 
+\- Generar clips reales de revisión en `review\_clips`.
+
 
 
 \## Limitaciones actuales
@@ -1968,7 +2102,9 @@ Ya permite:
 
 \- Los candidatos de gol todavía requieren validación con cámaras de marco, capitanes o revisión administrativa.
 
-\- Los clips todavía son sugerencias de rango; el sistema aún no genera archivos de clip finales automáticamente.
+\- Los clips reales de revisión se generan desde el video original, no necesariamente desde videos anotados.
+
+\- Los clips generados todavía no incluyen overlays adicionales, marcador, etiquetas ni explicación visual automática.
 
 
 
@@ -1992,7 +2128,9 @@ Posibles mejoras futuras:
 
 \- Detectar momentos donde el balón aparece cerca de la línea de gol.
 
-\- Generar clips automáticos reales a partir de `review\_moments`.
+\- Generar clips con overlays visuales.
+
+\- Generar clips desde videos procesados con detecciones o marca de balón.
 
 \- Mejorar detección del balón con modelos personalizados.
 
