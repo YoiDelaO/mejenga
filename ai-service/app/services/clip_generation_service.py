@@ -151,10 +151,13 @@ def convert_clip_to_web_mp4(input_path: Path, output_path: Path) -> dict:
                 "error": result.stderr,
             }
 
+        web_clip_url = f"/output-videos/{output_path.name}"
+
         return {
             "web_clip_generated": True,
             "web_clip_path": str(output_path),
-            "web_clip_url": f"/output-videos/{output_path.name}",
+            "web_clip_url": web_clip_url,
+            "web_clip_full_url": None,
             "codec": "h264",
             "pixel_format": "yuv420p",
         }
