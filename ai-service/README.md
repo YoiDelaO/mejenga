@@ -6,11 +6,11 @@ Servicio de inteligencia artificial para la aplicación \*\*Mejengas\*\*.
 
 
 
-Este módulo se encarga de recibir videos de partidos de fútbol, leer información básica del archivo, validar la calidad del video, detectar jugadores, realizar tracking básico, intentar detectar el balón, analizar actividad cerca de zonas de marco y devolver resultados en formato JSON.
+Este módulo recibe videos de partidos de fútbol, valida archivos, analiza información básica del video, detecta jugadores, intenta detectar el balón, analiza actividad cerca de zonas de marco, genera eventos deportivos preliminares y devuelve resultados en formato JSON.
 
 
 
-El servicio está diseñado como una capa independiente, por lo que puede ser consumido por una app móvil, una app web, un backend o cualquier cliente que pueda realizar peticiones HTTP.
+El servicio está diseñado como una capa independiente. Puede ser consumido por una app móvil, una app web, un backend o cualquier cliente capaz de enviar archivos por HTTP y leer respuestas JSON.
 
 
 
@@ -18,11 +18,11 @@ El servicio está diseñado como una capa independiente, por lo que puede ser co
 
 
 
-El objetivo inicial de este servicio es funcionar como una capa independiente de análisis de video para Mejengas.
+El objetivo de este servicio es funcionar como una capa independiente de análisis de video para Mejengas.
 
 
 
-Por ahora, el sistema no toma decisiones finales sobre el resultado de un partido. Su función es apoyar el análisis, generar evidencia visual, detectar posibles eventos relevantes y ayudar a determinar si un video puede ser útil para revisión.
+Por ahora, el sistema no toma decisiones finales sobre el resultado oficial de un partido. Su función es apoyar el análisis, generar evidencia visual, detectar posibles eventos relevantes y ayudar a determinar si un video requiere revisión.
 
 
 
@@ -160,6 +160,14 @@ Actualmente el servicio permite:
 
 \- Mantener visible la marca del balón durante varios frames para facilitar revisión visual.
 
+\- Registrar timestamps de detección del balón.
+
+\- Registrar timestamps cuando el balón aparece cerca de zonas de marco.
+
+\- Registrar timestamps de jugadores cerca de zonas de marco.
+
+\- Cruzar timestamps de jugadores y balón para detectar coincidencias temporales.
+
 \- Activar o desactivar análisis opcionales mediante parámetros.
 
 \- Soportar cámaras separadas por rol:
@@ -200,7 +208,11 @@ Actualmente el servicio permite:
 
 \- Generar candidatos de gol mediante `goal\_candidate\_events`.
 
-\- Generar resumen simplificado para la app mediante `match\_event\_summary`.
+\- Generar resumen simplificado para app/backend mediante `match\_event\_summary`.
+
+\- Generar sugerencias de clips de revisión mediante `clip\_suggestions`.
+
+\- Agrupar clips repetidos en momentos únicos mediante `review\_moments`.
 
 \- Separar advertencias críticas de advertencias informativas.
 
@@ -271,6 +283,10 @@ ai-service/
 &#x20;     goal\_candidate\_service.py
 
 &#x20;     match\_event\_summary\_service.py
+
+&#x20;     clip\_suggestion\_service.py
+
+&#x20;     review\_moment\_service.py
 
 &#x20;     match\_analysis\_service.py
 
@@ -1056,7 +1072,19 @@ Detección de jugadores
 
 &#x20;       ↓
 
-Actividad cerca de zona de marco
+Actividad de jugadores cerca de zonas de marco
+
+&#x20;       ↓
+
+Detección del balón
+
+&#x20;       ↓
+
+Actividad del balón cerca de zonas de marco
+
+&#x20;       ↓
+
+Correlación temporal entre jugadores y balón
 
 &#x20;       ↓
 
@@ -1076,7 +1104,183 @@ Candidato de gol
 
 &#x20;       ↓
 
-Resumen simplificado para la app/backend
+Timeline de eventos
+
+&#x20;       ↓
+
+Sugerencias de clips
+
+&#x20;       ↓
+
+Momentos agrupados de revisión
+
+&#x20;       ↓
+
+Resumen simplificado para app/backend
+
+```
+
+
+
+\## `detection\_summary`
+
+
+
+Resume la detección de jugadores.
+
+
+
+Incluye:
+
+
+
+```text
+
+frames\_analyzed
+
+average\_players\_detected
+
+max\_players\_detected
+
+detection\_confidence\_average
+
+analysis\_quality
+
+goal\_area\_activity
+
+```
+
+
+
+Dentro de `goal\_area\_activity`, el sistema registra actividad cerca de las zonas aproximadas de marco:
+
+
+
+```json
+
+{
+
+&#x20; "activity\_detected": true,
+
+&#x20; "total\_goal\_area\_detections": 58,
+
+&#x20; "left\_goal\_area\_detections": 33,
+
+&#x20; "right\_goal\_area\_detections": 25
+
+}
+
+```
+
+
+
+También registra timestamps de jugadores cerca de cada zona:
+
+
+
+```json
+
+{
+
+&#x20; "timestamp\_seconds": 25.59,
+
+&#x20; "center\_x": 686,
+
+&#x20; "center\_y": 187,
+
+&#x20; "confidence": 0.83
+
+}
+
+```
+
+
+
+\## `ball\_summary`
+
+
+
+Resume la detección experimental del balón.
+
+
+
+Incluye:
+
+
+
+```text
+
+frames\_analyzed
+
+frames\_with\_ball
+
+ball\_detection\_rate
+
+ball\_confidence\_average
+
+ball\_detected
+
+ball\_detection\_timestamps
+
+ball\_goal\_area\_activity
+
+processed\_ball\_video\_path
+
+```
+
+
+
+Ejemplo de timestamp de balón:
+
+
+
+```json
+
+{
+
+&#x20; "frame\_index": 765,
+
+&#x20; "timestamp\_seconds": 26.11,
+
+&#x20; "center\_x": 714,
+
+&#x20; "center\_y": 279,
+
+&#x20; "confidence": 0.92
+
+}
+
+```
+
+
+
+Ejemplo de balón cerca del área derecha:
+
+
+
+```json
+
+{
+
+&#x20; "right\_goal\_area\_timestamps": \[
+
+&#x20;   {
+
+&#x20;     "frame\_index": 765,
+
+&#x20;     "timestamp\_seconds": 26.11,
+
+&#x20;     "center\_x": 714,
+
+&#x20;     "center\_y": 279,
+
+&#x20;     "confidence": 0.92
+
+&#x20;   }
+
+&#x20; ]
+
+}
 
 ```
 
@@ -1130,6 +1334,22 @@ Combina jugadores cerca del marco con balón cerca del marco.
 
 
 
+Además, ahora puede correlacionar timestamps para verificar si jugadores y balón estuvieron cerca del marco en una ventana de tiempo cercana.
+
+
+
+Ventana actual:
+
+
+
+```text
+
+1.5 segundos
+
+```
+
+
+
 Ejemplo:
 
 
@@ -1144,9 +1364,49 @@ Ejemplo:
 
 &#x20; "possible\_shot\_context": true,
 
-&#x20; "players\_near\_goal\_area": true,
+&#x20; "time\_correlation\_available": true,
 
-&#x20; "ball\_near\_goal\_area": true
+&#x20; "time\_correlation\_window\_seconds": 1.5,
+
+&#x20; "events": \[
+
+&#x20;   {
+
+&#x20;     "type": "possible\_right\_goal\_danger\_play",
+
+&#x20;     "side": "right",
+
+&#x20;     "confidence": "time\_correlated",
+
+&#x20;     "time\_correlated": true
+
+&#x20;   }
+
+&#x20; ]
+
+}
+
+```
+
+
+
+Ejemplo de correlación temporal:
+
+
+
+```json
+
+{
+
+&#x20; "player\_timestamp\_seconds": 25.59,
+
+&#x20; "ball\_timestamp\_seconds": 26.11,
+
+&#x20; "time\_difference\_seconds": 0.52,
+
+&#x20; "player\_confidence": 0.83,
+
+&#x20; "ball\_confidence": 0.92
 
 }
 
@@ -1162,6 +1422,10 @@ Usa `danger\_events` y detección de balón para marcar un posible contexto de t
 
 
 
+Si el evento de peligro tiene correlación temporal, el posible tiro hereda esa confianza.
+
+
+
 Ejemplo:
 
 
@@ -1174,6 +1438,8 @@ Ejemplo:
 
 &#x20; "possible\_shot\_detected": true,
 
+&#x20; "time\_correlation\_available": true,
+
 &#x20; "events": \[
 
 &#x20;   {
@@ -1182,7 +1448,11 @@ Ejemplo:
 
 &#x20;     "side": "right",
 
-&#x20;     "confidence": "basic"
+&#x20;     "confidence": "time\_correlated",
+
+&#x20;     "time\_correlated": true,
+
+&#x20;     "source\_event": "possible\_right\_goal\_danger\_play"
 
 &#x20;   }
 
@@ -1206,6 +1476,10 @@ Este bloque no confirma goles. Solo indica que existe una posible jugada que req
 
 
 
+Si el posible tiro tiene correlación temporal, el candidato de gol hereda esa confianza.
+
+
+
 Ejemplo:
 
 
@@ -1222,6 +1496,8 @@ Ejemplo:
 
 &#x20; "is\_confirmed\_goal": false,
 
+&#x20; "time\_correlation\_available": true,
+
 &#x20; "events": \[
 
 &#x20;   {
@@ -1230,13 +1506,57 @@ Ejemplo:
 
 &#x20;     "side": "right",
 
-&#x20;     "confidence": "basic",
+&#x20;     "confidence": "time\_correlated",
+
+&#x20;     "time\_correlated": true,
 
 &#x20;     "description": "Possible goal candidate detected near the right goal area. This is not a confirmed goal."
 
 &#x20;   }
 
 &#x20; ]
+
+}
+
+```
+
+
+
+\## `analysis\_events`
+
+
+
+Resume los mensajes principales del análisis en una lista de texto.
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "events": \[
+
+&#x20;   "Video is readable.",
+
+&#x20;   "Player detection quality is useful.",
+
+&#x20;   "Possible danger play detected near goal areas.",
+
+&#x20;   "Possible shot event detected near the right goal area.",
+
+&#x20;   "Possible goal candidate detected.",
+
+&#x20;   "Goal camera validation is required.",
+
+&#x20;   "Goal is not confirmed by the AI service."
+
+&#x20; ],
+
+&#x20; "overall\_status": "ok"
 
 }
 
@@ -1304,6 +1624,234 @@ goal\_candidate\_review
 
 
 
+\## `timeline\_events`
+
+
+
+Dentro de `match\_event\_summary`, el sistema genera una línea de tiempo con eventos importantes que tienen timestamp principal.
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "timeline\_event\_count": 3,
+
+&#x20; "timeline\_events": \[
+
+&#x20;   {
+
+&#x20;     "category": "danger",
+
+&#x20;     "type": "possible\_right\_goal\_danger\_play",
+
+&#x20;     "side": "right",
+
+&#x20;     "confidence": "time\_correlated",
+
+&#x20;     "primary\_timestamp\_seconds": 26.11
+
+&#x20;   },
+
+&#x20;   {
+
+&#x20;     "category": "shot",
+
+&#x20;     "type": "possible\_shot\_event",
+
+&#x20;     "side": "right",
+
+&#x20;     "confidence": "time\_correlated",
+
+&#x20;     "primary\_timestamp\_seconds": 26.11
+
+&#x20;   },
+
+&#x20;   {
+
+&#x20;     "category": "goal\_candidate",
+
+&#x20;     "type": "possible\_goal\_candidate",
+
+&#x20;     "side": "right",
+
+&#x20;     "confidence": "time\_correlated",
+
+&#x20;     "primary\_timestamp\_seconds": 26.11,
+
+&#x20;     "is\_confirmed\_goal": false
+
+&#x20;   }
+
+&#x20; ]
+
+}
+
+```
+
+
+
+Este bloque permite que una app muestre una línea de tiempo de eventos importantes.
+
+
+
+\## `clip\_suggestions`
+
+
+
+Genera rangos sugeridos de video alrededor de eventos importantes.
+
+
+
+Actualmente usa:
+
+
+
+```text
+
+3 segundos antes del evento
+
+3 segundos después del evento
+
+```
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "clip\_suggestions\_available": true,
+
+&#x20; "seconds\_before\_event": 3,
+
+&#x20; "seconds\_after\_event": 3,
+
+&#x20; "suggestion\_count": 3,
+
+&#x20; "suggestions": \[
+
+&#x20;   {
+
+&#x20;     "clip\_id": "clip\_1",
+
+&#x20;     "category": "danger",
+
+&#x20;     "primary\_timestamp\_seconds": 26.11,
+
+&#x20;     "start\_time\_seconds": 23.11,
+
+&#x20;     "end\_time\_seconds": 27.16,
+
+&#x20;     "duration\_seconds": 4.05
+
+&#x20;   }
+
+&#x20; ]
+
+}
+
+```
+
+
+
+El sistema ajusta automáticamente el final del clip si el evento ocurre cerca del final del video.
+
+
+
+\## `review\_moments`
+
+
+
+Agrupa sugerencias de clips que ocurren en momentos muy cercanos.
+
+
+
+Esto evita que la app muestre varios clips repetidos cuando `danger`, `shot` y `goal\_candidate` ocurren en el mismo timestamp.
+
+
+
+Ventana actual de agrupación:
+
+
+
+```text
+
+1 segundo
+
+```
+
+
+
+Ejemplo:
+
+
+
+```json
+
+{
+
+&#x20; "review\_moments\_available": true,
+
+&#x20; "group\_window\_seconds": 1,
+
+&#x20; "moment\_count": 1,
+
+&#x20; "moments": \[
+
+&#x20;   {
+
+&#x20;     "review\_moment\_id": "review\_moment\_1",
+
+&#x20;     "primary\_timestamp\_seconds": 26.11,
+
+&#x20;     "start\_time\_seconds": 23.11,
+
+&#x20;     "end\_time\_seconds": 27.16,
+
+&#x20;     "duration\_seconds": 4.05,
+
+&#x20;     "main\_category": "goal\_candidate",
+
+&#x20;     "categories": \[
+
+&#x20;       "danger",
+
+&#x20;       "shot",
+
+&#x20;       "goal\_candidate"
+
+&#x20;     ],
+
+&#x20;     "event\_count": 3,
+
+&#x20;     "requires\_goal\_camera\_validation": true,
+
+&#x20;     "is\_confirmed\_goal": false
+
+&#x20;   }
+
+&#x20; ]
+
+}
+
+```
+
+
+
+Este bloque es el más útil para mostrar “momentos importantes” al usuario final o a una pantalla administrativa de revisión.
+
+
+
 \## Archivos generados
 
 
@@ -1356,7 +1904,7 @@ Ya permite:
 
 \- Detectar experimentalmente el balón.
 
-\- Mostrar la marca del balón de forma más visible.
+\- Mostrar la marca del balón de forma visible.
 
 \- Exportar resultados en JSON.
 
@@ -1368,7 +1916,13 @@ Ya permite:
 
 \- Exponer metadata para integración futura con apps o backends.
 
-\- Detectar actividad cerca del marco.
+\- Detectar actividad de jugadores cerca del marco.
+
+\- Detectar actividad del balón cerca del marco.
+
+\- Registrar timestamps de jugadores y balón.
+
+\- Correlacionar jugadores y balón por tiempo.
 
 \- Generar eventos básicos de ataque.
 
@@ -1379,6 +1933,12 @@ Ya permite:
 \- Generar candidatos de gol sin confirmar gol.
 
 \- Resumir eventos importantes en `match\_event\_summary`.
+
+\- Generar línea de tiempo con `timeline\_events`.
+
+\- Generar sugerencias de clips con `clip\_suggestions`.
+
+\- Agrupar clips repetidos en `review\_moments`.
 
 
 
@@ -1408,6 +1968,8 @@ Ya permite:
 
 \- Los candidatos de gol todavía requieren validación con cámaras de marco, capitanes o revisión administrativa.
 
+\- Los clips todavía son sugerencias de rango; el sistema aún no genera archivos de clip finales automáticamente.
+
 
 
 \## Próximos pasos
@@ -1430,7 +1992,7 @@ Posibles mejoras futuras:
 
 \- Detectar momentos donde el balón aparece cerca de la línea de gol.
 
-\- Crear clips automáticos de eventos importantes.
+\- Generar clips automáticos reales a partir de `review\_moments`.
 
 \- Mejorar detección del balón con modelos personalizados.
 
