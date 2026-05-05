@@ -1,5 +1,7 @@
 from pathlib import Path
 import cv2
+import subprocess
+import imageio_ffmpeg
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -114,7 +116,56 @@ def draw_review_overlay(frame, moment: dict | None) -> None:
             thickness,
             cv2.LINE_AA,
         )
+        
+def convert_clip_to_web_mp4(input_path: Path, output_path: Path) -> dict:
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
 
+    command = [
+        ffmpeg_exe,
+        "-y",
+        "-i",
+        str(input_path),
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        "-an",
+        str(output_path),
+    ]
+
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            return {
+                "web_clip_generated": False,
+                "web_clip_path": None,
+                "web_clip_url": None,
+                "error": result.stderr,
+            }
+
+        return {
+            "web_clip_generated": True,
+            "web_clip_path": str(output_path),
+            "web_clip_url": f"/output-videos/{output_path.name}",
+            "codec": "h264",
+            "pixel_format": "yuv420p",
+        }
+
+    except Exception as error:
+        return {
+            "web_clip_generated": False,
+            "web_clip_path": None,
+            "web_clip_url": None,
+            "error": str(error),
+        }
 
 def generate_clip_from_video(
     video_path: Path,
@@ -203,9 +254,28 @@ def generate_clip_from_video(
             ],
         }
 
+    clip_generated = frames_written > 0
+    generated_clip_path = str(output_path) if clip_generated else None
+    generated_clip_url = None
+    web_clip = None
+
+    if clip_generated:
+        generated_clip_url = f"/output-videos/{output_path.name}"
+
+        web_output_path = output_path.with_name(
+            f"{output_path.stem}_web.mp4"
+        )
+
+        web_clip = convert_clip_to_web_mp4(
+            input_path=output_path,
+            output_path=web_output_path,
+        )
+
     return {
-        "clip_generated": frames_written > 0,
-        "generated_clip_path": str(output_path) if frames_written > 0 else None,
+        "clip_generated": clip_generated,
+        "generated_clip_path": generated_clip_path,
+        "generated_clip_url": generated_clip_url,
+        "web_clip": web_clip,
         "start_frame": start_frame,
         "end_frame": end_frame,
         "frames_written": frames_written,
