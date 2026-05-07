@@ -68,6 +68,68 @@ def enrich_review_clips_with_full_urls(
 
     return review_clips
 
+def build_match_review_summary(camera_results: list[dict]) -> dict:
+    recommended_playback_urls = []
+    cameras_with_review_clips = []
+    review_clip_count = 0
+    goal_candidate_camera_count = 0
+    requires_goal_camera_validation = False
+
+    for camera_result in camera_results:
+        camera_id = camera_result.get("camera_id")
+        camera_angle = camera_result.get("camera_angle")
+        review_summary = camera_result.get("review_summary", {})
+
+        if review_summary.get("clip_count", 0) > 0:
+            review_clip_count += review_summary.get("clip_count", 0)
+
+        if review_summary.get("main_reason") == "goal_candidate":
+            goal_candidate_camera_count += 1
+
+        if review_summary.get("requires_goal_camera_validation", False):
+            requires_goal_camera_validation = True
+
+        recommended_playback_url = review_summary.get("recommended_playback_url")
+
+        if recommended_playback_url:
+            recommended_playback_urls.append(
+                {
+                    "camera_id": camera_id,
+                    "camera_angle": camera_angle,
+                    "url": recommended_playback_url,
+                    "main_reason": review_summary.get("main_reason"),
+                    "summary_status": review_summary.get("summary_status"),
+                    "frontend_message": review_summary.get("frontend_message"),
+                }
+            )
+
+            cameras_with_review_clips.append(
+                {
+                    "camera_id": camera_id,
+                    "camera_angle": camera_angle,
+                }
+            )
+
+    frontend_ready = len(recommended_playback_urls) > 0
+
+    frontend_message = "No match review clips available for playback."
+
+    if frontend_ready:
+        frontend_message = "Match review clips ready for playback."
+
+    return {
+        "match_review_summary_available": True,
+        "frontend_ready": frontend_ready,
+        "frontend_message": frontend_message,
+        "recommended_playback_urls": recommended_playback_urls,
+        "recommended_playback_url_count": len(recommended_playback_urls),
+        "review_clip_count": review_clip_count,
+        "cameras_with_review_clips": cameras_with_review_clips,
+        "cameras_with_review_clips_count": len(cameras_with_review_clips),
+        "goal_candidate_camera_count": goal_candidate_camera_count,
+        "requires_goal_camera_validation": requires_goal_camera_validation,
+    }
+
 
 @router.get("/health")
 def health_check():
@@ -435,6 +497,7 @@ async def analyze_match(
 
     match_summary = build_match_summary(camera_results)
     match_mode_validation = validate_match_mode(match_mode, camera_results)
+    match_review_summary = build_match_review_summary(camera_results)
 
     needs_review = False
 
@@ -462,6 +525,7 @@ async def analyze_match(
         "camera_results": camera_results,
         "match_summary": match_summary,
         "match_mode_validation": match_mode_validation,
+        "match_review_summary": match_review_summary,
         "needs_review": needs_review,
     }
 
