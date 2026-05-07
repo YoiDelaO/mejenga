@@ -133,6 +133,10 @@ def build_review_summary(
     primary_review_clip_available = primary_web_clip_full_url is not None
     recommended_playback_url = primary_web_clip_full_url
     frontend_ready = recommended_playback_url is not None
+    frontend_message = "No review clip available for playback."
+
+    if frontend_ready:
+        frontend_message = "Review clip ready for playback."
 
     return {
         "review_summary_available": True,
@@ -148,6 +152,7 @@ def build_review_summary(
         "primary_review_clip_available": primary_review_clip_available,
         "frontend_ready": frontend_ready,
         "recommended_playback_url": recommended_playback_url,
+        "frontend_message": frontend_message,
         "primary_generated_clip_path": primary_generated_clip_path,
         "primary_generated_clip_url": primary_generated_clip_url,
         "primary_generated_clip_full_url": primary_generated_clip_full_url,
