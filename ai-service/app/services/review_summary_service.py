@@ -131,6 +131,8 @@ def build_review_summary(
     primary_web_clip_full_url = web_clip_full_urls[0] if web_clip_full_urls else None
 
     primary_review_clip_available = primary_web_clip_full_url is not None
+    recommended_playback_url = primary_web_clip_full_url
+    frontend_ready = recommended_playback_url is not None
 
     return {
         "review_summary_available": True,
@@ -144,6 +146,8 @@ def build_review_summary(
         "requires_goal_camera_validation": requires_goal_camera_validation,
         "confirmed_goals": confirmed_goals,
         "primary_review_clip_available": primary_review_clip_available,
+        "frontend_ready": frontend_ready,
+        "recommended_playback_url": recommended_playback_url,
         "primary_generated_clip_path": primary_generated_clip_path,
         "primary_generated_clip_url": primary_generated_clip_url,
         "primary_generated_clip_full_url": primary_generated_clip_full_url,
