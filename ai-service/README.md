@@ -1268,6 +1268,15 @@ Ejemplo:
     "uses_ball_marker": true,
     "requires_goal_camera_validation": true,
     "confirmed_goals": 0,
+    "primary_review_clip_available": true,
+"frontend_ready": true,
+"recommended_playback_url": "http://127.0.0.1:8000/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4",
+"primary_generated_clip_path": "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
+"primary_generated_clip_url": "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
+"primary_generated_clip_full_url": "http://127.0.0.1:8000/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
+"primary_web_clip_path": "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4",
+"primary_web_clip_url": "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4",
+"primary_web_clip_full_url": "http://127.0.0.1:8000/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4",
     "generated_clip_paths": [
   "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4"
 ],
@@ -1309,7 +1318,14 @@ web_clip_paths
 web_clip_urls
 generated_clip_full_urls
 web_clip_full_urls
+frontend_ready
+recommended_playback_url
 ```
+Para integración con frontend, app móvil o dashboard administrativo, el campo más simple de usar es:
+
+```text
+review_summary.recommended_playback_url
+
 Para reproducción rápida desde app móvil, frontend web o dashboard administrativo, se recomienda usar:
 
 ```text
