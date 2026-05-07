@@ -120,6 +120,18 @@ def build_review_summary(
     elif review_moment_count > 0:
         main_reason = "review_moment"
 
+    primary_generated_clip_path = generated_clip_paths[0] if generated_clip_paths else None
+    primary_generated_clip_url = generated_clip_urls[0] if generated_clip_urls else None
+    primary_generated_clip_full_url = (
+        generated_clip_full_urls[0] if generated_clip_full_urls else None
+    )
+
+    primary_web_clip_path = web_clip_paths[0] if web_clip_paths else None
+    primary_web_clip_url = web_clip_urls[0] if web_clip_urls else None
+    primary_web_clip_full_url = web_clip_full_urls[0] if web_clip_full_urls else None
+
+    primary_review_clip_available = primary_web_clip_full_url is not None
+
     return {
         "review_summary_available": True,
         "review_required": review_required,
@@ -131,6 +143,13 @@ def build_review_summary(
         "uses_ball_marker": uses_ball_marker,
         "requires_goal_camera_validation": requires_goal_camera_validation,
         "confirmed_goals": confirmed_goals,
+        "primary_review_clip_available": primary_review_clip_available,
+        "primary_generated_clip_path": primary_generated_clip_path,
+        "primary_generated_clip_url": primary_generated_clip_url,
+        "primary_generated_clip_full_url": primary_generated_clip_full_url,
+        "primary_web_clip_path": primary_web_clip_path,
+        "primary_web_clip_url": primary_web_clip_url,
+        "primary_web_clip_full_url": primary_web_clip_full_url,
         "generated_clip_paths": generated_clip_paths,
         "generated_clip_urls": generated_clip_urls,
         "generated_clip_full_urls": generated_clip_full_urls,

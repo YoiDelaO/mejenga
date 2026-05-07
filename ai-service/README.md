@@ -1022,15 +1022,24 @@ Ejemplo:
       "requires_goal_camera_validation": true,
       "is_confirmed_goal": false,
       "clip_generation": {
-        "clip_generated": true,
-        "generated_clip_path": "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
-        "generated_clip_url": "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
-        "start_frame": 677,
-        "end_frame": 795,
-        "frames_written": 119,
-        "overlay_applied": true,
-        "overlay_type": "basic_review_moment"
-      }
+  "clip_generated": true,
+  "generated_clip_path": "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
+  "generated_clip_url": "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
+  "generated_clip_full_url": "http://127.0.0.1:8000/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4",
+  "web_clip": {
+    "web_clip_generated": true,
+    "web_clip_path": "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4",
+    "web_clip_url": "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4",
+    "web_clip_full_url": "http://127.0.0.1:8000/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4",
+    "codec": "h264",
+    "pixel_format": "yuv420p"
+  },
+  "start_frame": 677,
+  "end_frame": 795,
+  "frames_written": 119,
+  "overlay_applied": true,
+  "overlay_type": "basic_review_moment"
+	}
     }
   ]
 }
@@ -1202,7 +1211,14 @@ web_clip_path
 web_clip_url
 codec
 pixel_format
+web_clip_full_url
 ```
+`web_clip_full_url` contiene la URL absoluta lista para reproducirse desde navegador, app móvil o frontend web.
+
+Ejemplo:
+
+```text
+http://127.0.0.1:8000/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4
 
 Para navegador, app móvil o frontend web, se debe usar:
 
@@ -1229,6 +1245,8 @@ Para referencia al clip original:
 usar generated_clip_path o generated_clip_url.
 ```
 
+
+
 ## `review_summary`
 
 `review_summary` es un bloque compacto pensado para que la app, backend o dashboard pueda saber rápidamente si hay algo que revisar.
@@ -1251,17 +1269,23 @@ Ejemplo:
     "requires_goal_camera_validation": true,
     "confirmed_goals": 0,
     "generated_clip_paths": [
-      "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4"
-    ],
-    "generated_clip_urls": [
-      "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4"
-    ],
-    "web_clip_paths": [
-      "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4"
-    ],
-    "web_clip_urls": [
-      "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4"
-    ]
+  "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4"
+],
+"generated_clip_urls": [
+  "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4"
+],
+"generated_clip_full_urls": [
+  "http://127.0.0.1:8000/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay.mp4"
+],
+"web_clip_paths": [
+  "output_videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4"
+],
+"web_clip_urls": [
+  "/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4"
+],
+"web_clip_full_urls": [
+  "http://127.0.0.1:8000/output-videos/video_ball_review_moment_1_goal_candidate_right_overlay_web.mp4"
+]
   }
 }
 ```
@@ -1283,7 +1307,14 @@ generated_clip_paths
 generated_clip_urls
 web_clip_paths
 web_clip_urls
+generated_clip_full_urls
+web_clip_full_urls
 ```
+Para reproducción rápida desde app móvil, frontend web o dashboard administrativo, se recomienda usar:
+
+```text
+review_summary.web_clip_full_urls
+
 Para reproducción en navegador, app móvil o frontend web, se recomienda usar:
 
 ```text
