@@ -117,11 +117,25 @@ def build_match_review_summary(camera_results: list[dict]) -> dict:
     if frontend_ready:
         frontend_message = "Match review clips ready for playback."
 
+    recommended_primary_playback_url = None
+    recommended_primary_camera_id = None
+    recommended_primary_camera_angle = None
+
+    if recommended_playback_urls:
+        primary_playback = recommended_playback_urls[0]
+        recommended_primary_playback_url = primary_playback.get("url")
+        recommended_primary_camera_id = primary_playback.get("camera_id")
+        recommended_primary_camera_angle = primary_playback.get("camera_angle")
+
+
     return {
         "match_review_summary_available": True,
         "frontend_ready": frontend_ready,
         "frontend_message": frontend_message,
         "recommended_playback_urls": recommended_playback_urls,
+        "recommended_primary_playback_url": recommended_primary_playback_url,
+        "recommended_primary_camera_id": recommended_primary_camera_id,
+        "recommended_primary_camera_angle": recommended_primary_camera_angle,
         "recommended_playback_url_count": len(recommended_playback_urls),
         "review_clip_count": review_clip_count,
         "cameras_with_review_clips": cameras_with_review_clips,
