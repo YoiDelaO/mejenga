@@ -112,9 +112,11 @@ def build_match_review_summary(camera_results: list[dict]) -> dict:
 
     frontend_ready = len(recommended_playback_urls) > 0
 
+    match_review_status = "no_clips"
     frontend_message = "No match review clips available for playback."
 
     if frontend_ready:
+        match_review_status = "ready"
         frontend_message = "Match review clips ready for playback."
 
     recommended_primary_playback_url = None
@@ -131,6 +133,7 @@ def build_match_review_summary(camera_results: list[dict]) -> dict:
     return {
         "match_review_summary_available": True,
         "frontend_ready": frontend_ready,
+        "match_review_status": match_review_status,
         "frontend_message": frontend_message,
         "recommended_playback_urls": recommended_playback_urls,
         "recommended_primary_playback_url": recommended_primary_playback_url,
