@@ -516,6 +516,13 @@ async def analyze_match(
     match_mode_validation = validate_match_mode(match_mode, camera_results)
     match_review_summary = build_match_review_summary(camera_results)
 
+    match_action_required = "none"
+
+    if not match_mode_validation.get("is_valid_for_mode", False):
+        match_action_required = "fix_camera_setup"
+    elif match_review_summary.get("frontend_ready", False):
+        match_action_required = "review_clips"
+
     needs_review = False
 
     if match_mode_validation["match_mode"] == "ranked":
@@ -543,6 +550,7 @@ async def analyze_match(
         "match_summary": match_summary,
         "match_mode_validation": match_mode_validation,
         "match_review_summary": match_review_summary,
+        "match_action_required": match_action_required,
         "needs_review": needs_review,
     }
 
