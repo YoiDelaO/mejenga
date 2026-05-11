@@ -517,11 +517,17 @@ async def analyze_match(
     match_review_summary = build_match_review_summary(camera_results)
 
     match_action_required = "none"
+    match_action_message = "No match action is required."
 
     if not match_mode_validation.get("is_valid_for_mode", False):
         match_action_required = "fix_camera_setup"
+        match_action_message = (
+            "Match camera setup is incomplete for the selected match mode. "
+            "Please fix the camera setup before validating the match."
+        )
     elif match_review_summary.get("frontend_ready", False):
         match_action_required = "review_clips"
+        match_action_message = "Match review clips are available. Please review the clips before final validation."
 
     needs_review = False
 
@@ -551,6 +557,7 @@ async def analyze_match(
         "match_mode_validation": match_mode_validation,
         "match_review_summary": match_review_summary,
         "match_action_required": match_action_required,
+        "match_action_message": match_action_message,
         "needs_review": needs_review,
     }
 
