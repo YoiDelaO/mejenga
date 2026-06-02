@@ -529,6 +529,20 @@ async def analyze_match(
         match_action_required = "review_clips"
         match_action_message = "Match review clips are available. Please review the clips before final validation."
 
+    match_action_details = {
+        "match_mode": match_mode_validation.get("match_mode"),
+        "is_valid_for_mode": match_mode_validation.get("is_valid_for_mode"),
+        "camera_count": match_mode_validation.get("camera_count"),
+        "minimum_cameras": match_mode_validation.get("minimum_cameras"),
+        "recommended_cameras": match_mode_validation.get("recommended_cameras"),
+        "missing_required_angles": match_mode_validation.get("missing_required_angles", []),
+        "match_review_status": match_review_summary.get("match_review_status"),
+        "frontend_ready": match_review_summary.get("frontend_ready"),
+        "review_clip_count": match_review_summary.get("review_clip_count"),
+        "recommended_playback_url_count": match_review_summary.get("recommended_playback_url_count"),
+        "recommended_primary_playback_url": match_review_summary.get("recommended_primary_playback_url"),
+}
+
     needs_review = False
 
     if match_mode_validation["match_mode"] == "ranked":
@@ -558,6 +572,10 @@ async def analyze_match(
         "match_review_summary": match_review_summary,
         "match_action_required": match_action_required,
         "match_action_message": match_action_message,
+        "needs_review": needs_review,
+        "match_action_required": match_action_required,
+        "match_action_message": match_action_message,
+        "match_action_details": match_action_details,
         "needs_review": needs_review,
     }
 
