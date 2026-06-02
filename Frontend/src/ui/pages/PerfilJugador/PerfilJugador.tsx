@@ -149,10 +149,13 @@ export const PerfilJugador: React.FC = () => {
             )}
 
             {user.location && (
-              <p className="mj-perfil__location text-muted">
-                <MapPin size={14} /> 
-                {user.location.city}, {user.location.country}
-              </p>
+              <div className="mj-perfil__location text-muted" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <MapPin size={14} /> 
+                  <span>{user.location.countryName}</span>
+                </div>
+                <span style={{ fontSize: '0.85em', marginLeft: '18px' }}>{user.location.regionName}, {user.location.localityName}</span>
+              </div>
             )}
 
             <div className="mj-perfil__rating" style={{ color: 'var(--color-warning)' }}>

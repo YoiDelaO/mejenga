@@ -130,9 +130,17 @@ export const MatchmakingLobby: React.FC = () => {
   const [matchFound, setMatchFound] = useState(false);
   const [searchTime, setSearchTime] = useState(0);
   const [selectedModality, setSelectedModality] = useState<'Fútbol 5' | 'Fútbol 7'>('Fútbol 5');
-  const [preferredCities, setPreferredCities] = useState<string[]>([user?.location?.city || 'San José']);
+  const [searchScope, setSearchScope] = useState<'locality' | 'region' | 'country'>('locality');
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
+  const getScopeLabel = () => {
+    switch (searchScope) {
+      case 'locality': return user?.location?.localityName || 'Mi Localidad';
+      case 'region': return user?.location?.regionName || 'Mi Región';
+      case 'country': return user?.location?.countryName || 'Todo el País';
+    }
+  };
   const ACTIVE_RETO_KEY = 'mejengas_active_reto';
   const RETO_PHASE_KEY  = 'mejengas_reto_phase';
 
@@ -268,10 +276,6 @@ export const MatchmakingLobby: React.FC = () => {
     }
   };
 
-  const CITIES = ['San José', 'Heredia', 'Alajuela', 'Cartago', 'Puntarenas', 'Guanacaste', 'Limón'];
-  const toggleCity = (city: string) => {
-    setPreferredCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
-  };
   const [isLinkCopied, setIsLinkCopied] = useState(false);
 
   const handleShareInvite = async () => {
@@ -315,7 +319,7 @@ export const MatchmakingLobby: React.FC = () => {
           <h2>¡PARTIDA ENCONTRADA!</h2>
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px', justifyContent: 'center' }}>
             <div className="mj-badge mj-badge--primary">{selectedModality}</div>
-            <div className="mj-badge" style={{ border: '1px solid var(--color-border)' }}>📍 {preferredCities[0]}</div>
+            <div className="mj-badge" style={{ border: '1px solid var(--color-border)' }}>📍 {getScopeLabel()}</div>
           </div>
         </div>
         <div className="mj-versus-container">
@@ -377,8 +381,11 @@ export const MatchmakingLobby: React.FC = () => {
 
           <div className="mj-matchmaking-preferences">
             <div className="mj-preference-item" onClick={() => setIsCityModalOpen(true)} style={{ cursor: 'pointer' }}>
-              <label style={{ cursor: 'pointer' }}><MapPin size={16} /> Ubicación</label>
-              <div className="mj-preference-value">{preferredCities.length === 1 ? preferredCities[0] : `${preferredCities.length} Ciudades`}</div>
+              <label style={{ cursor: 'pointer' }}><MapPin size={16} /> Búsqueda</label>
+              <div className="mj-preference-value" style={{ textTransform: 'capitalize', textAlign: 'right' }}>
+                {searchScope === 'country' ? 'Todo el País' : searchScope === 'region' ? 'Mi Región' : 'Mi Localidad'}
+                <div style={{ fontSize: '0.8em', color: 'var(--color-text-muted)' }}>{getScopeLabel()}</div>
+              </div>
             </div>
             <div className="mj-modality-selector">
               <button className={`mj-modality-btn ${selectedModality === 'Fútbol 5' ? 'active' : ''}`} onClick={() => setSelectedModality('Fútbol 5')}>⚽ 5v5</button>
@@ -485,11 +492,24 @@ export const MatchmakingLobby: React.FC = () => {
               </div>
             )}
           </div>
-        ) : <Button size="lg" fullWidth onClick={handleStartSearch} className="mj-btn-play" disabled={preferredCities.length === 0}>Buscar Reto</Button>}
+        ) : <Button size="lg" fullWidth onClick={handleStartSearch} className="mj-btn-play" disabled={!user?.location}>Buscar Reto</Button>}
       </div>
 
-      <Modal isOpen={isCityModalOpen} onClose={() => setIsCityModalOpen(false)} title="Ubicación">
-        <div className="mj-pill-group">{CITIES.map(c => <button key={c} className={`mj-pill-btn ${preferredCities.includes(c) ? 'active' : ''}`} onClick={() => toggleCity(c)}>{c}</button>)}</div>
+      <Modal isOpen={isCityModalOpen} onClose={() => setIsCityModalOpen(false)} title="Alcance de Búsqueda">
+        <p className="text-muted" style={{ marginBottom: 'var(--spacing-md)', fontSize: '0.9rem' }}>
+          El matchmaking buscará automáticamente rivales dentro de tu país ({user?.location?.countryName}).
+        </p>
+        <div className="mj-pill-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <button className={`mj-pill-btn ${searchScope === 'locality' ? 'active' : ''}`} onClick={() => setSearchScope('locality')}>
+            Solo mi Localidad ({user?.location?.localityName})
+          </button>
+          <button className={`mj-pill-btn ${searchScope === 'region' ? 'active' : ''}`} onClick={() => setSearchScope('region')}>
+            Mi Región ({user?.location?.regionName})
+          </button>
+          <button className={`mj-pill-btn ${searchScope === 'country' ? 'active' : ''}`} onClick={() => setSearchScope('country')}>
+            Todo el País ({user?.location?.countryName})
+          </button>
+        </div>
       </Modal>
       <Modal isOpen={isInviteModalOpen} onClose={() => setIsInviteModalOpen(false)} title="Invitar Jugador">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>

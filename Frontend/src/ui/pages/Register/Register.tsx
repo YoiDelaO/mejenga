@@ -4,6 +4,8 @@ import { Button } from '../../components/Button/Button';
 import { Input } from '../../components/Input/Input';
 import { Mail, Lock, User as UserIcon, MapPin, Map, ArrowLeft, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../core/contexts/AuthContext';
+import { LocationService } from '../../../core/services/LocationService';
+import type { Country, Region, Locality } from '../../../core/services/LocationService';
 import '../Login/Auth.css';
 
 const POSITIONS = ['Portero', 'Defensa', 'Mediocampista', 'Delantero'];
@@ -26,10 +28,43 @@ export const Register: React.FC = () => {
     position: '',
     secondaryPosition: '',
     modality: '' as 'Fútbol 5' | 'Fútbol 7' | 'Ambas' | '',
-    country: '',
-    city: '',
-    canton: ''
+    countryId: '',
+    regionId: '',
+    localityId: ''
   });
+
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [localities, setLocalities] = useState<Locality[]>([]);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+
+  React.useEffect(() => {
+    LocationService.getCountries().then(setCountries);
+  }, []);
+
+  React.useEffect(() => {
+    if (formData.countryId) {
+      setIsLoadingLocations(true);
+      LocationService.getRegions(formData.countryId).then(data => {
+        setRegions(data);
+        setIsLoadingLocations(false);
+      });
+    } else {
+      setRegions([]);
+    }
+  }, [formData.countryId]);
+
+  React.useEffect(() => {
+    if (formData.regionId) {
+      setIsLoadingLocations(true);
+      LocationService.getLocalities(formData.regionId).then(data => {
+        setLocalities(data);
+        setIsLoadingLocations(false);
+      });
+    } else {
+      setLocalities([]);
+    }
+  }, [formData.regionId]);
 
   const updateForm = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -60,8 +95,8 @@ export const Register: React.FC = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.country || !formData.city) {
-      setError("El país y la ciudad son obligatorios.");
+    if (!formData.countryId || !formData.regionId || !formData.localityId) {
+      setError("Por favor completa toda tu ubicación.");
       return;
     }
     setError(null);
@@ -76,9 +111,12 @@ export const Register: React.FC = () => {
         secondaryPosition: formData.secondaryPosition,
         modality: formData.modality as any,
         location: {
-          country: formData.country,
-          city: formData.city,
-          canton: formData.canton
+          countryId: formData.countryId,
+          countryName: countries.find(c => c.id === formData.countryId)?.name || '',
+          regionId: formData.regionId,
+          regionName: regions.find(r => r.id === formData.regionId)?.name || '',
+          localityId: formData.localityId,
+          localityName: localities.find(l => l.id === formData.localityId)?.name || ''
         }
       });
       navigate('/');
@@ -253,32 +291,59 @@ export const Register: React.FC = () => {
           {/* STEP 3: LOCATION */}
           {step === 3 && (
             <>
-              <Input 
-                label="País *" 
-                type="text" 
-                placeholder="Ej. Costa Rica"
-                leftIcon={<Map size={18} />}
-                value={formData.country}
-                onChange={e => updateForm('country', e.target.value)}
-                required
-              />
-              <Input 
-                label="Ciudad / Provincia *" 
-                type="text" 
-                placeholder="Ej. San José"
-                leftIcon={<MapPin size={18} />}
-                value={formData.city}
-                onChange={e => updateForm('city', e.target.value)}
-                required
-              />
-              <Input 
-                label="Cantón (Opcional)" 
-                type="text" 
-                placeholder="Ej. Escazú"
-                leftIcon={<MapPin size={18} />}
-                value={formData.canton}
-                onChange={e => updateForm('canton', e.target.value)}
-              />
+              <div className="mj-input-group">
+                <label className="mj-input-label">País *</label>
+                <select 
+                  className="mj-input-field"
+                  value={formData.countryId}
+                  onChange={e => {
+                    updateForm('countryId', e.target.value);
+                    updateForm('regionId', '');
+                    updateForm('localityId', '');
+                  }}
+                  required
+                >
+                  <option value="">Selecciona un país</option>
+                  {countries.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mj-input-group">
+                <label className="mj-input-label">Región / Ciudad / Estado *</label>
+                <select 
+                  className="mj-input-field"
+                  value={formData.regionId}
+                  onChange={e => {
+                    updateForm('regionId', e.target.value);
+                    updateForm('localityId', '');
+                  }}
+                  disabled={!formData.countryId || isLoadingLocations}
+                  required
+                >
+                  <option value="">{isLoadingLocations ? 'Cargando regiones...' : 'Selecciona una región'}</option>
+                  {regions.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mj-input-group">
+                <label className="mj-input-label">Localidad / Cantón / Municipio *</label>
+                <select 
+                  className="mj-input-field"
+                  value={formData.localityId}
+                  onChange={e => updateForm('localityId', e.target.value)}
+                  disabled={!formData.regionId || isLoadingLocations}
+                  required
+                >
+                  <option value="">{isLoadingLocations ? 'Cargando localidades...' : 'Selecciona una localidad'}</option>
+                  {localities.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+                </select>
+              </div>
 
               <Button type="submit" fullWidth isLoading={isLoading} size="lg">
                 Completar Registro

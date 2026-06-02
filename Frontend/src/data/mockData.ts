@@ -32,7 +32,7 @@ export const mockUsers: User[] = [
     rank: { tier: 'Bronce', division: 4, points: 0 },
     isFreeAgent: false,
     avatarUrl: 'https://i.pravatar.cc/150?img=11',
-    location: { country: 'Costa Rica', city: 'San José' }
+    location: { countryId: 'CR', countryName: 'Costa Rica', regionId: 'CR-r1', regionName: 'Provincia/Estado 1 de Costa Rica', localityId: 'CR-r1-l1', localityName: 'Ciudad/Localidad 1 (CR-r1)' }
   },
   {
     id: 'u2',
@@ -63,7 +63,7 @@ export const mockUsers: User[] = [
     rank: { tier: 'Bronce', division: 4, points: 0 },
     isFreeAgent: true,
     avatarUrl: 'https://i.pravatar.cc/150?img=12',
-    location: { country: 'Costa Rica', city: 'Heredia' }
+    location: { countryId: 'CR', countryName: 'Costa Rica', regionId: 'CR-r2', regionName: 'Provincia/Estado 2 de Costa Rica', localityId: 'CR-r2-l1', localityName: 'Ciudad/Localidad 1 (CR-r2)' }
   },
   {
     id: 'u3',
@@ -95,7 +95,7 @@ export const mockUsers: User[] = [
     rank: { tier: 'Bronce', division: 4, points: 0 },
     isFreeAgent: true,
     avatarUrl: 'https://i.pravatar.cc/150?img=13',
-    location: { country: 'Costa Rica', city: 'Alajuela' }
+    location: { countryId: 'CR', countryName: 'Costa Rica', regionId: 'CR-r3', regionName: 'Provincia/Estado 3 de Costa Rica', localityId: 'CR-r3-l1', localityName: 'Ciudad/Localidad 1 (CR-r3)' }
   }
 ];
 
@@ -157,7 +157,7 @@ export const mockMatches: Match[] = [
     id: 'm1',
     title: 'Mejenga Nocturna',
     date: new Date(Date.now() + 86400000 * 2).toISOString(), // in 2 days
-    location: 'Canchas La Sabana, San José',
+    location: { countryId: 'CR', countryName: 'Costa Rica', regionId: 'CR-r1', regionName: 'Provincia/Estado 1 de Costa Rica', localityId: 'CR-r1-l1', localityName: 'Ciudad/Localidad 1 (CR-r1)', address: 'Canchas La Sabana' },
     homeTeamId: 't1',
     status: 'pending',
     pricePerTeam: 15000,
@@ -167,7 +167,7 @@ export const mockMatches: Match[] = [
     id: 'm2',
     title: 'Torneo Relámpago - Final',
     date: new Date(Date.now() - 86400000 * 1).toISOString(), // yesterday
-    location: 'Polideportivo',
+    location: { countryId: 'CR', countryName: 'Costa Rica', regionId: 'CR-r2', regionName: 'Provincia/Estado 2 de Costa Rica', localityId: 'CR-r2-l1', localityName: 'Ciudad/Localidad 1 (CR-r2)', address: 'Polideportivo' },
     homeTeamId: 't1',
     awayTeamId: 't2',
     homeScore: 3,
@@ -225,6 +225,35 @@ export const mockChats: Chat[] = [
         senderId: 'currentUser', 
         text: 'Mae Carlos, vimos tus stats de Fútbol 5 y nos cuadran. ¿Estás buscando equipo fijo para los jueves?',
         timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString()
+      }
+    ]
+  },
+  {
+    id: 'chat_team_t1',
+    type: 'equipo',
+    teamId: 't1',
+    participants: [mockUsers[0]], // Team members
+    lastMessageAt: new Date().toISOString(),
+    unreadCount: 0,
+    messages: [
+      {
+        id: 'm5',
+        senderId: 'u1',
+        text: '¿Quién se apunta para una mejenga este sábado?',
+        timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString()
+      },
+      {
+        id: 'm6',
+        senderId: 'u1',
+        text: 'Propuesta de Reto',
+        type: 'proposal',
+        timestamp: new Date().toISOString(),
+        proposalData: {
+          modality: 'Fútbol 5',
+          joinedUsers: ['u1'], // Carlos Ruiz is already joined
+          requiredPlayers: 5,
+          status: 'open'
+        }
       }
     ]
   }

@@ -16,9 +16,12 @@ export interface User {
   position: string;
   secondaryPosition?: string;
   location?: {
-    country: string;
-    city: string;
-    canton?: string;
+    countryId: string;
+    countryName: string;
+    regionId: string;
+    regionName: string;
+    localityId: string;
+    localityName: string;
   };
   modality?: 'Fútbol 5' | 'Fútbol 7' | 'Ambas';
   matchesPlayed: number;
@@ -70,7 +73,15 @@ export interface Match {
   id: string;
   title: string;
   date: string; // ISO string
-  location: string;
+  location: {
+    countryId: string;
+    countryName: string;
+    regionId: string;
+    regionName: string;
+    localityId: string;
+    localityName: string;
+    address?: string;
+  };
   homeTeamId: string;
   awayTeamId?: string; // Si es null, está buscando equipo (Buscar reto)
   homeScore?: number;
@@ -85,12 +96,20 @@ export interface Message {
   senderId: string;
   text: string;
   timestamp: string;
+  type?: 'text' | 'proposal';
+  proposalData?: {
+    modality: 'Fútbol 5' | 'Fútbol 7' | 'Ambas';
+    joinedUsers: string[]; // User IDs
+    requiredPlayers: number;
+    status: 'open' | 'searching' | 'closed';
+  };
 }
 
 export interface Chat {
   id: string;
-  type: 'reto' | 'reclutamiento';
-  participants: User[]; // The other users in the chat (usually just 1 for captain-to-captain)
+  type: 'reto' | 'reclutamiento' | 'equipo';
+  participants: User[]; // The other users in the chat (usually just 1 for captain-to-captain, or team for 'equipo')
+  teamId?: string; // If type is 'equipo'
   messages: Message[];
   lastMessageAt: string;
   unreadCount: number;

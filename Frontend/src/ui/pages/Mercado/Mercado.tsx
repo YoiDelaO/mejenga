@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import { mockUsers, mockTeams } from '../../../data/mockData';
@@ -9,6 +9,8 @@ import { Avatar } from '../../components/Avatar/Avatar';
 import { RankIcon } from '../../components/RankIcon/RankIcon';
 import { Modal } from '../../components/Modal/Modal';
 import { Search, MapPin, Shield, Star, Users, Activity } from 'lucide-react';
+import { LocationService } from '../../../core/services/LocationService';
+import type { Region, Locality } from '../../../core/services/LocationService';
 import './Mercado.css';
 
 export const Mercado: React.FC = () => {
@@ -17,8 +19,26 @@ export const Mercado: React.FC = () => {
   const myTeam = mockTeams.find(t => t.id === authUser?.teamId);
   
 
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+  const [selectedLocalityId, setSelectedLocalityId] = useState<string | null>(null);
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
+
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [localities, setLocalities] = useState<Locality[]>([]);
+
+  useEffect(() => {
+    if (authUser?.location?.countryId) {
+      LocationService.getRegions(authUser.location.countryId).then(setRegions);
+    }
+  }, [authUser?.location?.countryId]);
+
+  useEffect(() => {
+    if (selectedRegionId) {
+      LocationService.getLocalities(selectedRegionId).then(setLocalities);
+    } else {
+      setLocalities([]);
+    }
+  }, [selectedRegionId]);
 
   // Invite modal state
   const [inviteTarget, setInviteTarget] = useState<User | null>(null);
@@ -26,19 +46,19 @@ export const Mercado: React.FC = () => {
   const [inviteMessage, setInviteMessage] = useState('');
   const [isInviteSuccess, setIsInviteSuccess] = useState(false);
 
-  const CITIES = ['San José', 'Heredia', 'Alajuela', 'Cartago', 'Puntarenas', 'Guanacaste', 'Limón'];
   const POSITIONS = ['Delantero', 'Mediocampista', 'Defensa', 'Portero'];
 
-  // Only get users who are free agents
-  const freeAgents = mockUsers.filter(u => u.isFreeAgent);
+  // Only get users who are free agents and in the same country
+  const freeAgents = mockUsers.filter(u => u.isFreeAgent && u.location?.countryId === authUser?.location?.countryId);
 
   const filteredAgents = useMemo(() => {
     return freeAgents.filter(agent => {
-      if (selectedCity && agent.location?.city !== selectedCity) return false;
+      if (selectedRegionId && agent.location?.regionId !== selectedRegionId) return false;
+      if (selectedLocalityId && agent.location?.localityId !== selectedLocalityId) return false;
       if (selectedPosition && agent.position !== selectedPosition && agent.secondaryPosition !== selectedPosition) return false;
       return true;
     });
-  }, [freeAgents, selectedCity, selectedPosition]);
+  }, [freeAgents, selectedRegionId, selectedLocalityId, selectedPosition]);
 
   const handleSendInvite = (type: 'party' | 'team') => {
     if (type === 'team') {
@@ -76,25 +96,48 @@ export const Mercado: React.FC = () => {
 
           <div className="mj-mercado-filters">
         <div className="mj-filter-group">
-          <h3>Provincia</h3>
-          <div className="mj-filter-pills">
+          <h3>Región</h3>
+          <div className="mj-filter-pills mj-scrollbar-hide" style={{ overflowX: 'auto', display: 'flex', whiteSpace: 'nowrap' }}>
             <button 
-              className={`mj-filter-pill ${selectedCity === null ? 'active' : ''}`}
-              onClick={() => setSelectedCity(null)}
+              className={`mj-filter-pill ${selectedRegionId === null ? 'active' : ''}`}
+              onClick={() => { setSelectedRegionId(null); setSelectedLocalityId(null); }}
             >
               Todas
             </button>
-            {CITIES.map(city => (
+            {regions.map(region => (
               <button 
-                key={city}
-                className={`mj-filter-pill ${selectedCity === city ? 'active' : ''}`}
-                onClick={() => setSelectedCity(city)}
+                key={region.id}
+                className={`mj-filter-pill ${selectedRegionId === region.id ? 'active' : ''}`}
+                onClick={() => { setSelectedRegionId(region.id); setSelectedLocalityId(null); }}
               >
-                {city}
+                {region.name}
               </button>
             ))}
           </div>
         </div>
+
+        {selectedRegionId && (
+          <div className="mj-filter-group">
+            <h3>Localidad</h3>
+            <div className="mj-filter-pills mj-scrollbar-hide" style={{ overflowX: 'auto', display: 'flex', whiteSpace: 'nowrap' }}>
+              <button 
+                className={`mj-filter-pill ${selectedLocalityId === null ? 'active' : ''}`}
+                onClick={() => setSelectedLocalityId(null)}
+              >
+                Todas
+              </button>
+              {localities.map(locality => (
+                <button 
+                  key={locality.id}
+                  className={`mj-filter-pill ${selectedLocalityId === locality.id ? 'active' : ''}`}
+                  onClick={() => setSelectedLocalityId(locality.id)}
+                >
+                  {locality.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mj-filter-group">
           <h3>Posición</h3>
@@ -147,7 +190,7 @@ export const Mercado: React.FC = () => {
                     )}
                     {agent.location && (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-                        <MapPin size={12} /> {agent.location.city}
+                        <MapPin size={12} /> {agent.location.localityName}, {agent.location.regionName}
                       </span>
                     )}
                   </div>
