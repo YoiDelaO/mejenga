@@ -11,6 +11,7 @@ from app.services.tracking_service import track_players_in_video
 from app.services.ball_service import detect_ball_in_video
 from app.services.event_service import build_analysis_events
 from app.services.match_analysis_service import build_match_summary
+from app.services.match_action_service import build_match_action_summary
 from app.services.camera_angle_service import validate_camera_angles, get_camera_angle_metadata
 from app.services.file_validation_service import validate_video_file
 from app.services.match_mode_service import validate_match_mode, get_match_mode_metadata
@@ -145,44 +146,6 @@ def build_match_review_summary(camera_results: list[dict]) -> dict:
         "cameras_with_review_clips_count": len(cameras_with_review_clips),
         "goal_candidate_camera_count": goal_candidate_camera_count,
         "requires_goal_camera_validation": requires_goal_camera_validation,
-    }
-
-
-def build_match_action_summary(
-    match_mode_validation: dict,
-    match_review_summary: dict,
-) -> dict:
-    match_action_required = "none"
-    match_action_message = "No match action is required."
-
-    if not match_mode_validation.get("is_valid_for_mode", False):
-        match_action_required = "fix_camera_setup"
-        match_action_message = (
-            "Match camera setup is incomplete for the selected match mode. "
-            "Please fix the camera setup before validating the match."
-        )
-    elif match_review_summary.get("frontend_ready", False):
-        match_action_required = "review_clips"
-        match_action_message = "Match review clips are available. Please review the clips before final validation."
-
-    match_action_details = {
-        "match_mode": match_mode_validation.get("match_mode"),
-        "is_valid_for_mode": match_mode_validation.get("is_valid_for_mode"),
-        "camera_count": match_mode_validation.get("camera_count"),
-        "minimum_cameras": match_mode_validation.get("minimum_cameras"),
-        "recommended_cameras": match_mode_validation.get("recommended_cameras"),
-        "missing_required_angles": match_mode_validation.get("missing_required_angles", []),
-        "match_review_status": match_review_summary.get("match_review_status"),
-        "frontend_ready": match_review_summary.get("frontend_ready"),
-        "review_clip_count": match_review_summary.get("review_clip_count"),
-        "recommended_playback_url_count": match_review_summary.get("recommended_playback_url_count"),
-        "recommended_primary_playback_url": match_review_summary.get("recommended_primary_playback_url"),
-    }
-
-    return {
-        "match_action_required": match_action_required,
-        "match_action_message": match_action_message,
-        "match_action_details": match_action_details,
     }
 
 
