@@ -4,6 +4,11 @@ from app.services.ball_service import detect_ball_in_video
 from app.services.video_processor import get_video_info
 from app.services.video_quality_service import evaluate_video_quality
 from app.services.field_zone_service import get_field_zones
+from app.services.attack_event_service import build_attack_events
+from app.services.danger_event_service import build_danger_events
+from app.services.shot_event_service import build_shot_events
+from app.services.goal_candidate_service import build_goal_candidate_events
+from app.services.match_event_summary_service import build_match_event_summary
 
 
 def build_video_analysis_context(saved_video_path):
@@ -36,3 +41,36 @@ def run_optional_video_analysis(
             ball_summary = detect_ball_in_video(saved_video_path)
 
     return detection_summary, tracking_summary, ball_summary
+
+
+def build_video_event_analysis(
+    detection_summary,
+    ball_summary,
+):
+    attack_events = build_attack_events(detection_summary)
+
+    danger_events = build_danger_events(
+        detection_summary=detection_summary,
+        ball_summary=ball_summary,
+        attack_events=attack_events,
+    )
+
+    shot_events = build_shot_events(
+        danger_events=danger_events,
+        ball_summary=ball_summary,
+    )
+
+    goal_candidate_events = build_goal_candidate_events(
+        shot_events=shot_events,
+        danger_events=danger_events,
+        ball_summary=ball_summary,
+    )
+
+    match_event_summary = build_match_event_summary(
+        attack_events=attack_events,
+        danger_events=danger_events,
+        shot_events=shot_events,
+        goal_candidate_events=goal_candidate_events,
+    )
+
+    return attack_events, danger_events, shot_events, goal_candidate_events, match_event_summary

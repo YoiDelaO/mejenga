@@ -8,11 +8,6 @@ from app.services.match_review_service import build_match_review_summary
 from app.services.camera_angle_service import validate_camera_angles, get_camera_angle_metadata
 from app.services.file_validation_service import validate_video_file
 from app.services.match_mode_service import validate_match_mode, get_match_mode_metadata
-from app.services.attack_event_service import build_attack_events
-from app.services.danger_event_service import build_danger_events
-from app.services.shot_event_service import build_shot_events
-from app.services.goal_candidate_service import build_goal_candidate_events
-from app.services.match_event_summary_service import build_match_event_summary
 from app.services.clip_suggestion_service import build_clip_suggestions
 from app.services.review_moment_service import build_review_moments
 from app.services.clip_generation_service import generate_review_clips
@@ -20,7 +15,7 @@ from app.services.clip_url_service import build_full_url, enrich_review_clips_wi
 from app.services.review_summary_service import build_review_summary
 from app.services.video_storage_service import select_clip_source_video
 from app.services.review_decision_service import calculate_video_needs_review, calculate_match_needs_review
-from app.services.video_analysis_pipeline_service import build_video_analysis_context, run_optional_video_analysis
+from app.services.video_analysis_pipeline_service import build_video_analysis_context, run_optional_video_analysis, build_video_event_analysis
 
 
 router = APIRouter()
@@ -89,30 +84,9 @@ async def analyze_video(
         run_ball_detection=run_ball_detection,
     )
 
-    attack_events = build_attack_events(detection_summary)
-
-    danger_events = build_danger_events(
+    attack_events, danger_events, shot_events, goal_candidate_events, match_event_summary = build_video_event_analysis(
         detection_summary=detection_summary,
         ball_summary=ball_summary,
-        attack_events=attack_events,
-    )
-
-    shot_events = build_shot_events(
-        danger_events=danger_events,
-        ball_summary=ball_summary,
-    )
-
-    goal_candidate_events = build_goal_candidate_events(
-        shot_events=shot_events,
-        danger_events=danger_events,
-        ball_summary=ball_summary,
-    )
-
-    match_event_summary = build_match_event_summary(
-        attack_events=attack_events,
-        danger_events=danger_events,
-        shot_events=shot_events,
-        goal_candidate_events=goal_candidate_events,
     )
 
     clip_suggestions = build_clip_suggestions(
@@ -259,30 +233,9 @@ async def analyze_match(
             run_ball_detection=run_ball_detection,
         )
 
-        attack_events = build_attack_events(detection_summary)
-
-        danger_events = build_danger_events(
+        attack_events, danger_events, shot_events, goal_candidate_events, match_event_summary = build_video_event_analysis(
             detection_summary=detection_summary,
             ball_summary=ball_summary,
-            attack_events=attack_events,
-        )
-
-        shot_events = build_shot_events(
-            danger_events=danger_events,
-            ball_summary=ball_summary,
-        )
-
-        goal_candidate_events = build_goal_candidate_events(
-            shot_events=shot_events,
-            danger_events=danger_events,
-            ball_summary=ball_summary,
-        )
-
-        match_event_summary = build_match_event_summary(
-            attack_events=attack_events,
-            danger_events=danger_events,
-            shot_events=shot_events,
-            goal_candidate_events=goal_candidate_events,
         )
 
         clip_suggestions = build_clip_suggestions(
