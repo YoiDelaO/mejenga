@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 
 from app.utils.file_utils import save_uploaded_video, save_analysis_json
@@ -26,6 +24,7 @@ from app.services.review_moment_service import build_review_moments
 from app.services.clip_generation_service import generate_review_clips
 from app.services.clip_url_service import build_full_url, enrich_review_clips_with_full_urls
 from app.services.review_summary_service import build_review_summary
+from app.services.video_storage_service import select_clip_source_video
 
 
 router = APIRouter()
@@ -135,20 +134,10 @@ async def analyze_video(
 
     review_moments = build_review_moments(clip_suggestions)
 
-    clip_source_video_path = saved_video_path
-    clip_source = {
-        "source_type": "original_video",
-        "source_path": str(saved_video_path),
-        "uses_ball_marker": False,
-    }
-
-    if ball_summary and ball_summary.get("processed_ball_video_path"):
-        clip_source_video_path = Path(ball_summary.get("processed_ball_video_path"))
-        clip_source = {
-            "source_type": "processed_ball_video",
-            "source_path": ball_summary.get("processed_ball_video_path"),
-            "uses_ball_marker": True,
-        }
+    clip_source_video_path, clip_source = select_clip_source_video(
+        saved_video_path=saved_video_path,
+        ball_summary=ball_summary,
+    )
 
     review_clips = generate_review_clips(
         video_path=clip_source_video_path,
@@ -325,20 +314,10 @@ async def analyze_match(
 
         review_moments = build_review_moments(clip_suggestions)
 
-        clip_source_video_path = saved_video_path
-        clip_source = {
-            "source_type": "original_video",
-            "source_path": str(saved_video_path),
-            "uses_ball_marker": False,
-        }
-
-        if ball_summary and ball_summary.get("processed_ball_video_path"):
-            clip_source_video_path = Path(ball_summary.get("processed_ball_video_path"))
-            clip_source = {
-                "source_type": "processed_ball_video",
-                "source_path": ball_summary.get("processed_ball_video_path"),
-                "uses_ball_marker": True,
-            }
+        clip_source_video_path, clip_source = select_clip_source_video(
+            saved_video_path=saved_video_path,
+            ball_summary=ball_summary,
+        )
 
         review_clips = generate_review_clips(
             video_path=clip_source_video_path,
