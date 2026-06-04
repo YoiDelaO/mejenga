@@ -4,9 +4,6 @@ from app.utils.file_utils import save_uploaded_video, save_analysis_json
 from app.services.video_processor import get_video_info
 from app.services.video_quality_service import evaluate_video_quality
 from app.services.field_zone_service import get_field_zones
-from app.services.detection_service import detect_players_in_video
-from app.services.tracking_service import track_players_in_video
-from app.services.ball_service import detect_ball_in_video
 from app.services.event_service import build_analysis_events
 from app.services.match_analysis_service import build_match_summary
 from app.services.match_action_service import build_match_action_summary
@@ -26,6 +23,7 @@ from app.services.clip_url_service import build_full_url, enrich_review_clips_wi
 from app.services.review_summary_service import build_review_summary
 from app.services.video_storage_service import select_clip_source_video
 from app.services.review_decision_service import calculate_video_needs_review, calculate_match_needs_review
+from app.services.video_analysis_pipeline_service import run_optional_video_analysis
 
 
 router = APIRouter()
@@ -88,19 +86,13 @@ async def analyze_video(
     video_quality = evaluate_video_quality(video_info)
     field_zones = get_field_zones(video_info)
 
-    detection_summary = None
-    tracking_summary = None
-    ball_summary = None
-
-    if video_info["readable"]:
-        if run_detection:
-            detection_summary = detect_players_in_video(saved_video_path)
-
-        if run_tracking:
-            tracking_summary = track_players_in_video(saved_video_path)
-
-        if run_ball_detection:
-            ball_summary = detect_ball_in_video(saved_video_path)
+    detection_summary, tracking_summary, ball_summary = run_optional_video_analysis(
+        saved_video_path=saved_video_path,
+        video_info=video_info,
+        run_detection=run_detection,
+        run_tracking=run_tracking,
+        run_ball_detection=run_ball_detection,
+    )
 
     attack_events = build_attack_events(detection_summary)
 
@@ -266,19 +258,13 @@ async def analyze_match(
         video_quality = evaluate_video_quality(video_info)
         field_zones = get_field_zones(video_info)
 
-        detection_summary = None
-        tracking_summary = None
-        ball_summary = None
-
-        if video_info["readable"]:
-            if run_detection:
-                detection_summary = detect_players_in_video(saved_video_path)
-
-            if run_tracking:
-                tracking_summary = track_players_in_video(saved_video_path)
-
-            if run_ball_detection:
-                ball_summary = detect_ball_in_video(saved_video_path)
+        detection_summary, tracking_summary, ball_summary = run_optional_video_analysis(
+            saved_video_path=saved_video_path,
+            video_info=video_info,
+            run_detection=run_detection,
+            run_tracking=run_tracking,
+            run_ball_detection=run_ball_detection,
+        )
 
         attack_events = build_attack_events(detection_summary)
 
