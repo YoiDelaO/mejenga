@@ -1,6 +1,17 @@
 from app.services.detection_service import detect_players_in_video
 from app.services.tracking_service import track_players_in_video
 from app.services.ball_service import detect_ball_in_video
+from app.services.video_processor import get_video_info
+from app.services.video_quality_service import evaluate_video_quality
+from app.services.field_zone_service import get_field_zones
+
+
+def build_video_analysis_context(saved_video_path):
+    video_info = get_video_info(saved_video_path)
+    video_quality = evaluate_video_quality(video_info)
+    field_zones = get_field_zones(video_info)
+
+    return video_info, video_quality, field_zones
 
 
 def run_optional_video_analysis(

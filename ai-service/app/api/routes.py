@@ -1,9 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 
 from app.utils.file_utils import save_uploaded_video, save_analysis_json
-from app.services.video_processor import get_video_info
-from app.services.video_quality_service import evaluate_video_quality
-from app.services.field_zone_service import get_field_zones
 from app.services.event_service import build_analysis_events
 from app.services.match_analysis_service import build_match_summary
 from app.services.match_action_service import build_match_action_summary
@@ -23,7 +20,7 @@ from app.services.clip_url_service import build_full_url, enrich_review_clips_wi
 from app.services.review_summary_service import build_review_summary
 from app.services.video_storage_service import select_clip_source_video
 from app.services.review_decision_service import calculate_video_needs_review, calculate_match_needs_review
-from app.services.video_analysis_pipeline_service import run_optional_video_analysis
+from app.services.video_analysis_pipeline_service import build_video_analysis_context, run_optional_video_analysis
 
 
 router = APIRouter()
@@ -82,9 +79,7 @@ async def analyze_video(
         )
 
     saved_video_path = await save_uploaded_video(file, prefix="single_video")
-    video_info = get_video_info(saved_video_path)
-    video_quality = evaluate_video_quality(video_info)
-    field_zones = get_field_zones(video_info)
+    video_info, video_quality, field_zones = build_video_analysis_context(saved_video_path)
 
     detection_summary, tracking_summary, ball_summary = run_optional_video_analysis(
         saved_video_path=saved_video_path,
@@ -254,9 +249,7 @@ async def analyze_match(
             )
 
         saved_video_path = await save_uploaded_video(file, prefix=camera_id)
-        video_info = get_video_info(saved_video_path)
-        video_quality = evaluate_video_quality(video_info)
-        field_zones = get_field_zones(video_info)
+        video_info, video_quality, field_zones = build_video_analysis_context(saved_video_path)
 
         detection_summary, tracking_summary, ball_summary = run_optional_video_analysis(
             saved_video_path=saved_video_path,
