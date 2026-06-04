@@ -25,6 +25,7 @@ from app.services.clip_generation_service import generate_review_clips
 from app.services.clip_url_service import build_full_url, enrich_review_clips_with_full_urls
 from app.services.review_summary_service import build_review_summary
 from app.services.video_storage_service import select_clip_source_video
+from app.services.review_decision_service import calculate_video_needs_review, calculate_match_needs_review
 
 
 router = APIRouter()
@@ -168,13 +169,11 @@ async def analyze_video(
         goal_candidate_events=goal_candidate_events,
     )
 
-    needs_review = not video_info["readable"]
-
-    if detection_summary and detection_summary.get("needs_admin_review"):
-        needs_review = True
-
-    if analysis_events.get("overall_status") == "needs_review":
-        needs_review = True
+    needs_review = calculate_video_needs_review(
+        video_info=video_info,
+        detection_summary=detection_summary,
+        analysis_events=analysis_events,
+    )
 
     analysis_result = {
         "filename": file.filename,
@@ -385,18 +384,10 @@ async def analyze_match(
     match_action_message = match_action_summary["match_action_message"]
     match_action_details = match_action_summary["match_action_details"]
 
-    needs_review = False
-
-    if match_mode_validation["match_mode"] == "ranked":
-        if match_summary.get("match_status") == "needs_review":
-            needs_review = True
-
-        if not match_mode_validation["is_valid_for_mode"]:
-            needs_review = True
-
-    if match_mode_validation["match_mode"] == "casual":
-        if not match_mode_validation["is_valid_for_mode"]:
-            needs_review = True
+    needs_review = calculate_match_needs_review(
+        match_mode_validation=match_mode_validation,
+        match_summary=match_summary,
+    )
 
     analysis_result = {
         "match_analysis": True,
