@@ -3,6 +3,14 @@ SUPPORTED_EVENT_CATEGORIES = {
     "shot",
     "goal_candidate",
 }
+GOAL_CAMERA_BY_SIDE = {
+    "left": "goal_left",
+    "right": "goal_right",
+}
+SIDE_CAMERA_BY_SIDE = {
+    "left": "side_left",
+    "right": "side_right",
+}
 
 
 def build_event_observation(
@@ -62,7 +70,174 @@ def extract_event_observations(camera_results: list[dict]) -> list[dict]:
     )
 
 
-def build_correlated_event(event_id: str, observations: list[dict]) -> dict:
+def build_available_review_camera(
+    observation: dict,
+    camera_result: dict | None,
+    preferred_goal_camera_angle: str | None,
+    preferred_side_camera_angle: str | None,
+) -> dict:
+    review_summary = {}
+    video_quality = {}
+
+    if camera_result:
+        review_summary = camera_result.get("review_summary", {})
+        video_quality = camera_result.get("video_quality", {})
+
+    frontend_ready = review_summary.get("frontend_ready", False)
+    recommended_playback_url = review_summary.get("recommended_playback_url")
+    quality_status = video_quality.get("quality_status")
+    camera_angle = observation.get("camera_angle")
+
+    reason_parts = []
+
+    if frontend_ready and recommended_playback_url:
+        reason_parts.append("clip ready")
+    else:
+        reason_parts.append("no clip ready")
+
+    if camera_angle == preferred_goal_camera_angle:
+        reason_parts.append("preferred goal camera angle")
+    elif camera_angle == preferred_side_camera_angle:
+        reason_parts.append("preferred side camera angle")
+
+    if quality_status == "usable":
+        reason_parts.append("usable video quality")
+    elif quality_status:
+        reason_parts.append(f"{quality_status} video quality")
+    else:
+        reason_parts.append("unknown video quality")
+
+    return {
+        "camera_id": observation.get("camera_id"),
+        "camera_angle": camera_angle,
+        "frontend_ready": frontend_ready,
+        "recommended_playback_url": recommended_playback_url,
+        "quality_status": quality_status,
+        "reason": ", ".join(reason_parts),
+    }
+
+
+def choose_recommended_review_camera(
+    available_review_cameras: list[dict],
+    side: str,
+    has_goal_candidate: bool,
+) -> tuple[dict | None, list[str]]:
+    if not available_review_cameras:
+        return None, ["No participating cameras were available for review recommendation."]
+
+    recommendation_reasons = []
+    candidate_pool = [
+        camera for camera in available_review_cameras
+        if camera.get("frontend_ready") and camera.get("recommended_playback_url")
+    ]
+
+    if candidate_pool:
+        recommendation_reasons.append("Preferred cameras with a review clip ready.")
+    else:
+        candidate_pool = available_review_cameras
+        recommendation_reasons.append("No participating camera has a review clip ready yet.")
+
+    preferred_goal_camera_angle = GOAL_CAMERA_BY_SIDE.get(side)
+    preferred_side_camera_angle = SIDE_CAMERA_BY_SIDE.get(side)
+
+    if has_goal_candidate and preferred_goal_camera_angle:
+        goal_camera_candidates = [
+            camera for camera in candidate_pool
+            if camera.get("camera_angle") == preferred_goal_camera_angle
+        ]
+
+        if goal_camera_candidates:
+            candidate_pool = goal_camera_candidates
+            recommendation_reasons.append(
+                f"Preferred {preferred_goal_camera_angle} for a goal candidate on the {side} side."
+            )
+
+    if preferred_side_camera_angle:
+        side_camera_candidates = [
+            camera for camera in candidate_pool
+            if camera.get("camera_angle") == preferred_side_camera_angle
+        ]
+
+        if side_camera_candidates:
+            candidate_pool = side_camera_candidates
+            recommendation_reasons.append(
+                f"Preferred {preferred_side_camera_angle} for an event on the {side} side."
+            )
+
+    usable_camera_candidates = [
+        camera for camera in candidate_pool
+        if camera.get("quality_status") == "usable"
+    ]
+
+    if usable_camera_candidates:
+        candidate_pool = usable_camera_candidates
+        recommendation_reasons.append("Preferred a camera with usable video quality.")
+
+    selected_camera = candidate_pool[0]
+    recommendation_reasons.append(
+        f"Selected {selected_camera.get('camera_id')} as the best participating review camera."
+    )
+
+    return selected_camera, recommendation_reasons
+
+
+def build_review_camera_recommendation(
+    observations: list[dict],
+    camera_result_by_id: dict,
+    categories: list[str],
+) -> dict:
+    side = observations[0]["side"]
+    has_goal_candidate = "goal_candidate" in categories
+    preferred_goal_camera_angle = None
+    if has_goal_candidate:
+        preferred_goal_camera_angle = GOAL_CAMERA_BY_SIDE.get(side)
+
+    preferred_side_camera_angle = SIDE_CAMERA_BY_SIDE.get(side)
+    available_review_cameras = []
+
+    for observation in observations:
+        camera_id = observation.get("camera_id")
+        available_review_cameras.append(
+            build_available_review_camera(
+                observation=observation,
+                camera_result=camera_result_by_id.get(camera_id),
+                preferred_goal_camera_angle=preferred_goal_camera_angle,
+                preferred_side_camera_angle=preferred_side_camera_angle,
+            )
+        )
+
+    selected_camera, recommendation_reasons = choose_recommended_review_camera(
+        available_review_cameras=available_review_cameras,
+        side=side,
+        has_goal_candidate=has_goal_candidate,
+    )
+
+    recommended_camera_id = None
+    recommended_camera_angle = None
+    recommended_playback_url = None
+
+    if selected_camera:
+        recommended_camera_id = selected_camera.get("camera_id")
+        recommended_camera_angle = selected_camera.get("camera_angle")
+
+        if selected_camera.get("frontend_ready"):
+            recommended_playback_url = selected_camera.get("recommended_playback_url")
+
+    return {
+        "recommended_camera_id": recommended_camera_id,
+        "recommended_camera_angle": recommended_camera_angle,
+        "recommended_playback_url": recommended_playback_url,
+        "recommendation_reasons": recommendation_reasons,
+        "available_review_camera_count": len(available_review_cameras),
+        "available_review_cameras": available_review_cameras,
+    }
+
+
+def build_correlated_event(
+    event_id: str,
+    observations: list[dict],
+    camera_result_by_id: dict,
+) -> dict:
     timestamps = [
         observation["primary_timestamp_seconds"]
         for observation in observations
@@ -91,8 +266,13 @@ def build_correlated_event(event_id: str, observations: list[dict]) -> dict:
             for observation in observations
         )
     )
+    review_camera_recommendation = build_review_camera_recommendation(
+        observations=observations,
+        camera_result_by_id=camera_result_by_id,
+        categories=categories,
+    )
 
-    return {
+    correlated_event = {
         "multicamera_event_id": event_id,
         "side": observations[0]["side"],
         "primary_timestamp_seconds": min(timestamps),
@@ -115,6 +295,9 @@ def build_correlated_event(event_id: str, observations: list[dict]) -> dict:
         "is_confirmed_goal": False,
         "observations": observations,
     }
+    correlated_event.update(review_camera_recommendation)
+
+    return correlated_event
 
 
 def build_match_multicamera_events(camera_results: list[dict]) -> dict:
@@ -124,6 +307,10 @@ def build_match_multicamera_events(camera_results: list[dict]) -> dict:
     observations = extract_event_observations(camera_results)
     camera_ids = {
         camera_result.get("camera_id")
+        for camera_result in camera_results
+    }
+    camera_result_by_id = {
+        camera_result.get("camera_id"): camera_result
         for camera_result in camera_results
     }
 
@@ -176,6 +363,7 @@ def build_match_multicamera_events(camera_results: list[dict]) -> dict:
             build_correlated_event(
                 event_id=f"multicamera_event_{len(correlated_events) + 1}",
                 observations=group,
+                camera_result_by_id=camera_result_by_id,
             )
         )
 
