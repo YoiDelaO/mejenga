@@ -375,6 +375,84 @@ def build_frontend_multicamera_summary(events: list[dict]) -> dict:
     }
 
 
+def build_goal_candidate_review_options() -> list[dict]:
+    return [
+        {
+            "value": "confirm_goal",
+            "label": "Confirm goal",
+            "changes_goal_status": True,
+        },
+        {
+            "value": "reject_goal",
+            "label": "Reject goal",
+            "changes_goal_status": True,
+        },
+        {
+            "value": "mark_uncertain",
+            "label": "Mark as uncertain",
+            "changes_goal_status": False,
+        },
+    ]
+
+
+def build_shot_review_options() -> list[dict]:
+    return [
+        {
+            "value": "confirm_shot",
+            "label": "Confirm shot",
+            "changes_goal_status": False,
+        },
+        {
+            "value": "reject_shot",
+            "label": "Reject shot",
+            "changes_goal_status": False,
+        },
+        {
+            "value": "mark_uncertain",
+            "label": "Mark as uncertain",
+            "changes_goal_status": False,
+        },
+    ]
+
+
+def build_multicamera_review_decision_metadata(frontend_summary: dict) -> dict:
+    primary_category = frontend_summary.get("primary_recommended_category")
+    requires_goal_camera_validation = frontend_summary.get(
+        "primary_recommended_requires_goal_camera_validation",
+        False,
+    )
+    review_decision_required = False
+    review_decision_type = "none"
+    review_decision_message = "No manual review decision is required."
+    review_decision_options = []
+
+    if primary_category == "goal_candidate" or requires_goal_camera_validation:
+        review_decision_required = True
+        review_decision_type = "goal_candidate_review"
+        review_decision_message = "Goal candidate requires human review before confirmation."
+        review_decision_options = build_goal_candidate_review_options()
+
+    elif primary_category == "shot":
+        review_decision_type = "shot_review"
+        review_decision_message = "Shot event can be reviewed manually."
+        review_decision_options = build_shot_review_options()
+
+    return {
+        "review_decision_required": review_decision_required,
+        "review_decision_type": review_decision_type,
+        "review_decision_message": review_decision_message,
+        "review_decision_event_id": frontend_summary.get("primary_recommended_event_id"),
+        "review_decision_camera_id": frontend_summary.get("primary_recommended_camera_id"),
+        "review_decision_camera_angle": frontend_summary.get(
+            "primary_recommended_camera_angle"
+        ),
+        "review_decision_playback_url": frontend_summary.get(
+            "primary_recommended_playback_url"
+        ),
+        "review_decision_options": review_decision_options,
+    }
+
+
 def build_match_multicamera_events(camera_results: list[dict]) -> dict:
     warnings = [
         "Multicamera correlation assumes all videos start at approximately the same time."
@@ -451,6 +529,8 @@ def build_match_multicamera_events(camera_results: list[dict]) -> dict:
         "events": correlated_events,
         "warnings": warnings,
     }
-    multicamera_events.update(build_frontend_multicamera_summary(correlated_events))
+    frontend_summary = build_frontend_multicamera_summary(correlated_events)
+    multicamera_events.update(frontend_summary)
+    multicamera_events.update(build_multicamera_review_decision_metadata(frontend_summary))
 
     return multicamera_events
