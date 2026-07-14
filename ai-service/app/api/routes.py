@@ -24,6 +24,7 @@ from app.services.review_decision_service import (
 )
 from app.services.video_analysis_pipeline_service import build_video_analysis_context, run_optional_video_analysis, build_video_event_analysis
 from app.services.match_multicamera_event_service import build_match_multicamera_events
+from app.services.frontend_match_summary_service import build_frontend_match_summary
 
 
 router = APIRouter()
@@ -361,6 +362,14 @@ async def analyze_match(
         match_mode_validation=match_mode_validation,
         match_summary=match_summary,
     )
+    frontend_match_summary = build_frontend_match_summary(
+        match_multicamera_events=match_multicamera_events,
+        match_review_summary=match_review_summary,
+        match_mode_validation=match_mode_validation,
+        match_summary=match_summary,
+        match_action_required=match_action_required,
+        needs_review=needs_review,
+    )
 
     analysis_result = {
         "match_analysis": True,
@@ -374,6 +383,7 @@ async def analyze_match(
         },
         "camera_results": camera_results,
         "match_multicamera_events": match_multicamera_events,
+        "frontend_match_summary": frontend_match_summary,
         "match_summary": match_summary,
         "match_mode_validation": match_mode_validation,
         "match_review_summary": match_review_summary,
