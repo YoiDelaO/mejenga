@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Request
+from pydantic import BaseModel
 
 from app.utils.file_utils import save_uploaded_video, save_analysis_json
 from app.services.event_service import build_analysis_events
@@ -14,12 +15,28 @@ from app.services.clip_generation_service import generate_review_clips
 from app.services.clip_url_service import build_full_url, enrich_review_clips_with_full_urls
 from app.services.review_summary_service import build_review_summary
 from app.services.video_storage_service import select_clip_source_video
-from app.services.review_decision_service import calculate_video_needs_review, calculate_match_needs_review
+from app.services.review_decision_service import (
+    ALLOWED_MANUAL_REVIEW_DECISIONS,
+    build_manual_review_decision_response,
+    calculate_video_needs_review,
+    calculate_match_needs_review,
+    validate_manual_review_decision,
+)
 from app.services.video_analysis_pipeline_service import build_video_analysis_context, run_optional_video_analysis, build_video_event_analysis
 from app.services.match_multicamera_event_service import build_match_multicamera_events
 
 
 router = APIRouter()
+
+
+class ReviewDecisionRequest(BaseModel):
+    match_analysis_id: str | None = None
+    event_id: str
+    decision: str
+    camera_id: str | None = None
+    camera_angle: str | None = None
+    playback_url: str | None = None
+    notes: str | None = None
 
 
 @router.get("/health")
@@ -169,6 +186,28 @@ async def analyze_video(
     analysis_result["analysis_json_path"] = str(json_path)
 
     return analysis_result
+
+
+@router.post("/review-decision")
+def receive_review_decision(review_decision: ReviewDecisionRequest):
+    decision_payload = (
+        review_decision.model_dump()
+        if hasattr(review_decision, "model_dump")
+        else review_decision.dict()
+    )
+    validation_errors = validate_manual_review_decision(decision_payload)
+
+    if validation_errors:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Invalid manual review decision.",
+                "errors": validation_errors,
+                "allowed_decisions": ALLOWED_MANUAL_REVIEW_DECISIONS,
+            },
+        )
+
+    return build_manual_review_decision_response(decision_payload)
 
 
 @router.post("/analyze-match")
