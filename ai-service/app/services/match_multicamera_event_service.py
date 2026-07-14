@@ -300,6 +300,81 @@ def build_correlated_event(
     return correlated_event
 
 
+def get_primary_recommended_category(event: dict) -> str | None:
+    categories = event.get("categories", [])
+
+    if "goal_candidate" in categories:
+        return "goal_candidate"
+
+    if "shot" in categories:
+        return "shot"
+
+    if categories:
+        return categories[0]
+
+    return None
+
+
+def select_primary_recommended_event(events: list[dict]) -> dict | None:
+    for event in events:
+        if event.get("has_goal_candidate", False):
+            return event
+
+    for event in events:
+        if "shot" in event.get("categories", []):
+            return event
+
+    if events:
+        return events[0]
+
+    return None
+
+
+def build_frontend_multicamera_summary(events: list[dict]) -> dict:
+    primary_event = select_primary_recommended_event(events)
+
+    if not primary_event:
+        return {
+            "frontend_summary_available": True,
+            "frontend_status": "no_events",
+            "frontend_message": "No multicamera review events detected.",
+            "primary_recommended_event_id": None,
+            "primary_recommended_category": None,
+            "primary_recommended_camera_id": None,
+            "primary_recommended_camera_angle": None,
+            "primary_recommended_playback_url": None,
+            "primary_recommended_requires_goal_camera_validation": None,
+            "primary_recommended_is_confirmed_goal": None,
+        }
+
+    primary_recommended_playback_url = primary_event.get("recommended_playback_url")
+    frontend_status = "needs_clip"
+    frontend_message = "Multicamera event detected, but no review clip is ready."
+
+    if primary_recommended_playback_url:
+        frontend_status = "ready"
+        frontend_message = "Multicamera review event ready for playback."
+
+    return {
+        "frontend_summary_available": True,
+        "frontend_status": frontend_status,
+        "frontend_message": frontend_message,
+        "primary_recommended_event_id": primary_event.get("multicamera_event_id"),
+        "primary_recommended_category": get_primary_recommended_category(primary_event),
+        "primary_recommended_camera_id": primary_event.get("recommended_camera_id"),
+        "primary_recommended_camera_angle": primary_event.get("recommended_camera_angle"),
+        "primary_recommended_playback_url": primary_recommended_playback_url,
+        "primary_recommended_requires_goal_camera_validation": primary_event.get(
+            "requires_goal_camera_validation",
+            False,
+        ),
+        "primary_recommended_is_confirmed_goal": primary_event.get(
+            "is_confirmed_goal",
+            False,
+        ),
+    }
+
+
 def build_match_multicamera_events(camera_results: list[dict]) -> dict:
     warnings = [
         "Multicamera correlation assumes all videos start at approximately the same time."
@@ -367,7 +442,7 @@ def build_match_multicamera_events(camera_results: list[dict]) -> dict:
             )
         )
 
-    return {
+    multicamera_events = {
         "multicamera_events_available": True,
         "assumes_synchronized_video_start": True,
         "correlation_window_seconds": CORRELATION_WINDOW_SECONDS,
@@ -376,3 +451,6 @@ def build_match_multicamera_events(camera_results: list[dict]) -> dict:
         "events": correlated_events,
         "warnings": warnings,
     }
+    multicamera_events.update(build_frontend_multicamera_summary(correlated_events))
+
+    return multicamera_events
