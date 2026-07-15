@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
+import { analyzeMatchVideo, type AnalyzeMatchResponse, type FrontendMatchSummary } from '../../../core/services/aiService';
 import { Button } from '../../components/Button/Button';
 import { Card } from '../../components/Card/Card';
 import { Modal } from '../../components/Modal/Modal';
@@ -155,7 +156,11 @@ export const MatchmakingLobby: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordedBlob, setRecordedBlob] = useState<string | null>(null);
+  const [recordedVideoBlob, setRecordedVideoBlob] = useState<Blob | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [aiAnalysisResponse, setAiAnalysisResponse] = useState<AnalyzeMatchResponse | null>(null);
+  const [aiFrontendSummary, setAiFrontendSummary] = useState<FrontendMatchSummary | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isRecording) return;
@@ -200,21 +205,56 @@ export const MatchmakingLobby: React.FC = () => {
     setActiveRetoChat(null);
     setRetoPhase(null);
     setRecordedBlob(null);
+    setRecordedVideoBlob(null);
+    setAiAnalysisResponse(null);
+    setAiFrontendSummary(null);
+    setAiError(null);
     stopRecording(true); 
   };
 
-  const handleEnviarIA = () => {
+  const handleEnviarIA = async () => {
+    if (!recordedVideoBlob) {
+      setAiError('No hay video grabado para enviar a la IA.');
+      return;
+    }
+
+    const videoFile = new File([recordedVideoBlob], 'match-recording.webm', { type: 'video/webm' });
+
+    setAiError(null);
+    setAiAnalysisResponse(null);
+    setAiFrontendSummary(null);
     setRetoPhase('procesando');
     localStorage.setItem(RETO_PHASE_KEY, 'procesando');
-    setTimeout(() => {
+
+    try {
+      const response = await analyzeMatchVideo({
+        videoFile,
+        matchMode: 'casual',
+        cameraAngle: 'side_left',
+        runDetection: true,
+        runTracking: false,
+        runBallDetection: true,
+      });
+
+      setAiAnalysisResponse(response);
+      setAiFrontendSummary(response.frontend_match_summary);
       setRetoPhase('resultados');
       localStorage.setItem(RETO_PHASE_KEY, 'resultados');
-    }, 4000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo enviar el video a la IA.';
+      setAiError(message);
+      setRetoPhase('confirmado');
+      localStorage.setItem(RETO_PHASE_KEY, 'confirmado');
+    }
   };
 
   const openCamera = async () => {
     setCameraError(null);
+    setAiError(null);
+    setAiAnalysisResponse(null);
+    setAiFrontendSummary(null);
     setRecordedBlob(null);
+    setRecordedVideoBlob(null);
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCameraError('Tu navegador no soporta el acceso a la cámara o estás usando una conexión no segura.');
       return;
@@ -252,11 +292,16 @@ export const MatchmakingLobby: React.FC = () => {
     const stream = videoPreviewRef.current?.srcObject as MediaStream;
     if (!stream) return;
     chunksRef.current = [];
+    setAiError(null);
+    setAiAnalysisResponse(null);
+    setAiFrontendSummary(null);
+    setRecordedVideoBlob(null);
     const recorder = new MediaRecorder(stream);
     recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' });
       setRecordedBlob(URL.createObjectURL(blob));
+      setRecordedVideoBlob(blob);
       setIsRecording(false);
     };
     recorder.start();
@@ -417,6 +462,42 @@ export const MatchmakingLobby: React.FC = () => {
               </div>
             ) : retoPhase === 'resultados' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                {aiFrontendSummary && (
+                  <Card glass className="mj-match-results-card">
+                    <span className="mj-match-results-header">Analisis IA</span>
+                    <h3>{aiFrontendSummary.main_message}</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left', marginTop: 'var(--spacing-md)' }}>
+                      <div><strong>Estado:</strong> {aiFrontendSummary.frontend_status}</div>
+                      <div><strong>Accion:</strong> {aiFrontendSummary.primary_action}</div>
+                      <div><strong>Camara:</strong> {aiFrontendSummary.primary_camera_id || 'Sin camara recomendada'}</div>
+                      <div><strong>Angulo:</strong> {aiFrontendSummary.primary_camera_angle || 'Sin angulo recomendado'}</div>
+                      <div><strong>Requiere revision:</strong> {aiAnalysisResponse?.needs_review ? 'Si' : 'No'}</div>
+                      {aiFrontendSummary.warnings.length > 0 && (
+                        <div>
+                          <strong>Alertas:</strong>
+                          <ul style={{ margin: '8px 0 0 18px', padding: 0 }}>
+                            {aiFrontendSummary.warnings.map((warning, index) => (
+                              <li key={`${warning}-${index}`}>{warning}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                    {aiFrontendSummary.primary_video_url && (
+                      <video
+                        src={aiFrontendSummary.primary_video_url}
+                        controls
+                        className="mj-video-playback"
+                        style={{ marginTop: 'var(--spacing-md)' }}
+                      />
+                    )}
+                  </Card>
+                )}
+                {aiError && (
+                  <div style={{ padding: 'var(--spacing-md)', background: 'rgba(255,59,48,0.1)', color: 'var(--color-danger)', borderRadius: '12px', fontSize: 'var(--font-size-sm)', textAlign: 'center' }}>
+                    {aiError}
+                  </div>
+                )}
                 <Card glass className="mj-match-results-card">
                   <span className="mj-match-results-header">Reto Finalizado</span>
                   <div className="mj-match-results-score">
@@ -450,6 +531,11 @@ export const MatchmakingLobby: React.FC = () => {
                     {cameraError}
                   </div>
                 )}
+                {aiError && (
+                  <div style={{ padding: 'var(--spacing-md)', background: 'rgba(255,59,48,0.1)', color: 'var(--color-danger)', borderRadius: '12px', fontSize: 'var(--font-size-sm)', textAlign: 'center' }}>
+                    {aiError}
+                  </div>
+                )}
                 {cameraOpen ? (
                   <div className="mj-camera-container">
                     <div className="mj-video-wrapper">
@@ -460,7 +546,13 @@ export const MatchmakingLobby: React.FC = () => {
                       <>
                         <video src={recordedBlob} controls className="mj-video-playback" />
                         <Button size="lg" fullWidth onClick={handleEnviarIA}>Enviar a la IA</Button>
-                        <Button variant="outline" fullWidth onClick={() => setRecordedBlob(null)}>Reintentar</Button>
+                        <Button variant="outline" fullWidth onClick={() => {
+                          setRecordedBlob(null);
+                          setRecordedVideoBlob(null);
+                          setAiError(null);
+                          setAiAnalysisResponse(null);
+                          setAiFrontendSummary(null);
+                        }}>Reintentar</Button>
                       </>
                     ) : (
                       <>
