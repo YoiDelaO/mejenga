@@ -614,6 +614,32 @@
   gap: var(--spacing-sm);
 }
 
+.mj-ai-decision-status {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.mj-ai-decision-result,
+.mj-ai-decision-error {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--spacing-sm);
+  border-radius: 12px;
+  font-size: var(--font-size-sm);
+}
+
+.mj-ai-decision-result {
+  background: rgba(0, 255, 135, 0.1);
+  border: 1px solid rgba(0, 255, 135, 0.24);
+}
+
+.mj-ai-decision-error {
+  color: var(--color-danger);
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.24);
+}
+
 /* Recording Instructions */
 .mj-recording-instructions h4 {
   margin: 0 0 12px 0;

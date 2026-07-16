@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
-import { analyzeMatchVideo, type AnalyzeMatchResponse, type FrontendMatchSummary } from '../../../core/services/aiService';
+import {
+  analyzeMatchVideo,
+  sendReviewDecision,
+  type AnalyzeMatchResponse,
+  type FrontendMatchSummary,
+  type ReviewDecisionResponse,
+} from '../../../core/services/aiService';
 import { Button } from '../../components/Button/Button';
 import { Card } from '../../components/Card/Card';
 import { Modal } from '../../components/Modal/Modal';
@@ -73,6 +79,16 @@ const getAiWarningLabel = (warning: string) => {
   }
 
   return AI_WARNING_LABELS[warning] || warning;
+};
+
+const getReviewDecisionEventId = (response: AnalyzeMatchResponse | null) => {
+  const eventId = response?.match_multicamera_events?.review_decision_event_id;
+
+  if (typeof eventId === 'string' && eventId.trim()) {
+    return eventId;
+  }
+
+  return null;
 };
 
 const HonorScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
@@ -217,12 +233,21 @@ export const MatchmakingLobby: React.FC = () => {
   const [aiAnalysisResponse, setAiAnalysisResponse] = useState<AnalyzeMatchResponse | null>(null);
   const [aiFrontendSummary, setAiFrontendSummary] = useState<FrontendMatchSummary | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [reviewDecisionLoading, setReviewDecisionLoading] = useState(false);
+  const [reviewDecisionResult, setReviewDecisionResult] = useState<ReviewDecisionResponse | null>(null);
+  const [reviewDecisionError, setReviewDecisionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isRecording) return;
     const id = setInterval(() => setRecordingTime(t => t + 1), 1000);
     return () => clearInterval(id);
   }, [isRecording]);
+
+  const resetReviewDecisionState = () => {
+    setReviewDecisionLoading(false);
+    setReviewDecisionResult(null);
+    setReviewDecisionError(null);
+  };
 
   const handleConfirmReto = (chatId: string) => {
     localStorage.setItem(ACTIVE_RETO_KEY, chatId);
@@ -265,6 +290,7 @@ export const MatchmakingLobby: React.FC = () => {
     setAiAnalysisResponse(null);
     setAiFrontendSummary(null);
     setAiError(null);
+    resetReviewDecisionState();
     stopRecording(true); 
   };
 
@@ -279,6 +305,7 @@ export const MatchmakingLobby: React.FC = () => {
     setAiError(null);
     setAiAnalysisResponse(null);
     setAiFrontendSummary(null);
+    resetReviewDecisionState();
     setRetoPhase('procesando');
     localStorage.setItem(RETO_PHASE_KEY, 'procesando');
 
@@ -304,11 +331,57 @@ export const MatchmakingLobby: React.FC = () => {
     }
   };
 
+  const handleReviewDecision = async (decisionValue: string) => {
+    if (!aiFrontendSummary) {
+      setReviewDecisionError('No hay un análisis IA disponible para enviar la decisión.');
+      return;
+    }
+
+    const selectedOption = aiFrontendSummary.review_decision_options.find(
+      option => option.value === decisionValue,
+    );
+
+    if (!selectedOption) {
+      setReviewDecisionError('La opción de decisión seleccionada no está disponible.');
+      return;
+    }
+
+    const eventId = getReviewDecisionEventId(aiAnalysisResponse);
+
+    if (!eventId) {
+      setReviewDecisionError('No se encontró el evento de revisión para enviar la decisión.');
+      return;
+    }
+
+    setReviewDecisionLoading(true);
+    setReviewDecisionError(null);
+    setReviewDecisionResult(null);
+
+    try {
+      const response = await sendReviewDecision({
+        event_id: eventId,
+        decision: selectedOption.value,
+        camera_id: aiFrontendSummary.primary_camera_id,
+        camera_angle: aiFrontendSummary.primary_camera_angle,
+        playback_url: aiFrontendSummary.primary_video_url,
+        notes: 'Decision sent from frontend demo.',
+      });
+
+      setReviewDecisionResult(response);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo enviar la decisión.';
+      setReviewDecisionError(message);
+    } finally {
+      setReviewDecisionLoading(false);
+    }
+  };
+
   const openCamera = async () => {
     setCameraError(null);
     setAiError(null);
     setAiAnalysisResponse(null);
     setAiFrontendSummary(null);
+    resetReviewDecisionState();
     setRecordedBlob(null);
     setRecordedVideoBlob(null);
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -351,6 +424,7 @@ export const MatchmakingLobby: React.FC = () => {
     setAiError(null);
     setAiAnalysisResponse(null);
     setAiFrontendSummary(null);
+    resetReviewDecisionState();
     setRecordedVideoBlob(null);
     const recorder = new MediaRecorder(stream);
     recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
@@ -573,22 +647,48 @@ export const MatchmakingLobby: React.FC = () => {
                         </ol>
                       </div>
                     )}
-                    {aiFrontendSummary.requires_human_review && (
+                    {aiFrontendSummary.requires_human_review ? (
                       <div className="mj-ai-decision-panel">
                         <h4>Decisión requerida</h4>
-                        <p>La conexión de decisión se implementará en el siguiente paso.</p>
+                        <p>Selecciona una decisión para registrar esta revisión en la demo.</p>
+                        {reviewDecisionLoading && (
+                          <p className="mj-ai-decision-status">Enviando decisión...</p>
+                        )}
+                        {aiFrontendSummary.review_decision_options.length === 0 && (
+                          <p>No hay opciones de decisión disponibles para esta jugada.</p>
+                        )}
                         <div className="mj-ai-decision-options">
                           {aiFrontendSummary.review_decision_options.map(option => (
                             <Button
                               key={option.value}
                               variant="outline"
                               size="sm"
-                              disabled
+                              disabled={reviewDecisionLoading}
+                              onClick={() => handleReviewDecision(option.value)}
                             >
                               {option.label}
                             </Button>
                           ))}
                         </div>
+                        {reviewDecisionResult && (
+                          <div className="mj-ai-decision-result">
+                            <strong>Decisión registrada para la demo.</strong>
+                            <div>Decisión: {reviewDecisionResult.decision}</div>
+                            <div>Estado de gol: {reviewDecisionResult.manual_goal_status}</div>
+                            <div>Estado de evento: {reviewDecisionResult.manual_event_status}</div>
+                            <div>Persistencia: {reviewDecisionResult.persistence_status}</div>
+                          </div>
+                        )}
+                        {reviewDecisionError && (
+                          <div className="mj-ai-decision-error">
+                            {reviewDecisionError}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mj-ai-decision-panel">
+                        <h4>Decisión humana</h4>
+                        <p>No se requiere decisión humana.</p>
                       </div>
                     )}
                   </Card>
@@ -654,6 +754,7 @@ export const MatchmakingLobby: React.FC = () => {
                           setAiError(null);
                           setAiAnalysisResponse(null);
                           setAiFrontendSummary(null);
+                          resetReviewDecisionState();
                         }}>Reintentar</Button>
                       </>
                     ) : (
