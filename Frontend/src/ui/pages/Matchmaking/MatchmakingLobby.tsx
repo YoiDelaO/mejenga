@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../core/contexts/AuthContext';
 import {
+  analyzeMulticameraMatch,
   analyzeMatchVideo,
   sendReviewDecision,
   type AnalyzeMatchResponse,
@@ -58,6 +59,30 @@ const AI_WARNING_LABELS: Record<string, string> = {
   'No shot or goal candidate events with timestamps were available.': 'No se encontraron tiros o candidatos a gol con marcas de tiempo.',
 };
 
+const REVIEW_DECISION_OPTION_LABELS: Record<string, string> = {
+  'Confirm goal': 'Confirmar gol',
+  'Reject goal': 'Rechazar gol',
+  'Mark as uncertain': 'Marcar como incierto',
+  'Confirm shot': 'Confirmar tiro',
+  'Reject shot': 'Rechazar tiro',
+};
+
+const REVIEW_DECISION_VALUE_LABELS: Record<string, string> = {
+  confirm_goal: 'Gol confirmado',
+  reject_goal: 'Gol rechazado',
+  mark_uncertain: 'Marcado como incierto',
+  confirm_shot: 'Tiro confirmado',
+  reject_shot: 'Tiro rechazado',
+};
+
+const REVIEW_DECISION_STATUS_LABELS: Record<string, string> = {
+  confirmed_by_human: 'Confirmado manualmente',
+  rejected_by_human: 'Rechazado manualmente',
+  uncertain_by_human: 'Incierto',
+  not_applicable: 'No aplica',
+  not_implemented: 'No implementada todavía',
+};
+
 const getFrontendStatusLabel = (status: string) => (
   FRONTEND_STATUS_LABELS[status] || status
 );
@@ -80,6 +105,18 @@ const getAiWarningLabel = (warning: string) => {
 
   return AI_WARNING_LABELS[warning] || warning;
 };
+
+const getReviewDecisionOptionLabel = (value: string, label: string) => (
+  REVIEW_DECISION_OPTION_LABELS[label] || REVIEW_DECISION_VALUE_LABELS[value] || label
+);
+
+const getReviewDecisionValueLabel = (value: string) => (
+  REVIEW_DECISION_VALUE_LABELS[value] || value
+);
+
+const getReviewDecisionStatusLabel = (status: string) => (
+  REVIEW_DECISION_STATUS_LABELS[status] || status
+);
 
 const getReviewDecisionEventId = (response: AnalyzeMatchResponse | null) => {
   const eventId = response?.match_multicamera_events?.review_decision_event_id;
@@ -236,6 +273,10 @@ export const MatchmakingLobby: React.FC = () => {
   const [reviewDecisionLoading, setReviewDecisionLoading] = useState(false);
   const [reviewDecisionResult, setReviewDecisionResult] = useState<ReviewDecisionResponse | null>(null);
   const [reviewDecisionError, setReviewDecisionError] = useState<string | null>(null);
+  const [multicameraCam1File, setMulticameraCam1File] = useState<File | null>(null);
+  const [multicameraCam2File, setMulticameraCam2File] = useState<File | null>(null);
+  const [multicameraLoading, setMulticameraLoading] = useState(false);
+  const [multicameraError, setMulticameraError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isRecording) return;
@@ -291,6 +332,10 @@ export const MatchmakingLobby: React.FC = () => {
     setAiFrontendSummary(null);
     setAiError(null);
     resetReviewDecisionState();
+    setMulticameraCam1File(null);
+    setMulticameraCam2File(null);
+    setMulticameraLoading(false);
+    setMulticameraError(null);
     stopRecording(true); 
   };
 
@@ -305,6 +350,7 @@ export const MatchmakingLobby: React.FC = () => {
     setAiError(null);
     setAiAnalysisResponse(null);
     setAiFrontendSummary(null);
+    setMulticameraLoading(false);
     resetReviewDecisionState();
     setRetoPhase('procesando');
     localStorage.setItem(RETO_PHASE_KEY, 'procesando');
@@ -328,6 +374,47 @@ export const MatchmakingLobby: React.FC = () => {
       setAiError(message);
       setRetoPhase('confirmado');
       localStorage.setItem(RETO_PHASE_KEY, 'confirmado');
+    }
+  };
+
+  const handleAnalyzeMulticamera = async () => {
+    if (!multicameraCam1File || !multicameraCam2File) {
+      setMulticameraError('Selecciona los dos videos antes de analizar.');
+      return;
+    }
+
+    setMulticameraLoading(true);
+    setMulticameraError(null);
+    setAiError(null);
+    setAiAnalysisResponse(null);
+    setAiFrontendSummary(null);
+    resetReviewDecisionState();
+    setRetoPhase('procesando');
+    localStorage.setItem(RETO_PHASE_KEY, 'procesando');
+
+    try {
+      const response = await analyzeMulticameraMatch({
+        cam1File: multicameraCam1File,
+        cam2File: multicameraCam2File,
+        cam1Angle: 'side_left',
+        cam2Angle: 'side_right',
+        matchMode: 'casual',
+        runDetection: true,
+        runTracking: false,
+        runBallDetection: true,
+      });
+
+      setAiAnalysisResponse(response);
+      setAiFrontendSummary(response.frontend_match_summary);
+      setRetoPhase('resultados');
+      localStorage.setItem(RETO_PHASE_KEY, 'resultados');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudieron analizar las dos cámaras.';
+      setMulticameraError(message);
+      setRetoPhase('confirmado');
+      localStorage.setItem(RETO_PHASE_KEY, 'confirmado');
+    } finally {
+      setMulticameraLoading(false);
     }
   };
 
@@ -381,6 +468,7 @@ export const MatchmakingLobby: React.FC = () => {
     setAiError(null);
     setAiAnalysisResponse(null);
     setAiFrontendSummary(null);
+    setMulticameraError(null);
     resetReviewDecisionState();
     setRecordedBlob(null);
     setRecordedVideoBlob(null);
@@ -424,6 +512,7 @@ export const MatchmakingLobby: React.FC = () => {
     setAiError(null);
     setAiAnalysisResponse(null);
     setAiFrontendSummary(null);
+    setMulticameraError(null);
     resetReviewDecisionState();
     setRecordedVideoBlob(null);
     const recorder = new MediaRecorder(stream);
@@ -585,7 +674,7 @@ export const MatchmakingLobby: React.FC = () => {
                   <div className="mj-pulse-ring"></div>
                   <Video size={42} />
                 </div>
-                <h3>Analizando Partido...</h3>
+                <h3>{multicameraLoading ? 'Analizando las dos cámaras...' : 'Analizando Partido...'}</h3>
                 <div className="mj-processing-bar-wrapper">
                   <div className="mj-processing-bar-progress" />
                 </div>
@@ -666,17 +755,17 @@ export const MatchmakingLobby: React.FC = () => {
                               disabled={reviewDecisionLoading}
                               onClick={() => handleReviewDecision(option.value)}
                             >
-                              {option.label}
+                              {getReviewDecisionOptionLabel(option.value, option.label)}
                             </Button>
                           ))}
                         </div>
                         {reviewDecisionResult && (
                           <div className="mj-ai-decision-result">
                             <strong>Decisión registrada para la demo.</strong>
-                            <div>Decisión: {reviewDecisionResult.decision}</div>
-                            <div>Estado de gol: {reviewDecisionResult.manual_goal_status}</div>
-                            <div>Estado de evento: {reviewDecisionResult.manual_event_status}</div>
-                            <div>Persistencia: {reviewDecisionResult.persistence_status}</div>
+                            <div>Decisión: {getReviewDecisionValueLabel(reviewDecisionResult.decision)}</div>
+                            <div>Estado del gol: {getReviewDecisionStatusLabel(reviewDecisionResult.manual_goal_status)}</div>
+                            <div>Estado del evento: {getReviewDecisionStatusLabel(reviewDecisionResult.manual_event_status)}</div>
+                            <div>Persistencia: {getReviewDecisionStatusLabel(reviewDecisionResult.persistence_status)}</div>
                           </div>
                         )}
                         {reviewDecisionError && (
@@ -727,6 +816,56 @@ export const MatchmakingLobby: React.FC = () => {
                     <div className="mj-recording-item"><Camera size={14} /> <span>Ángulo fijo y elevado</span></div>
                     <div className="mj-recording-item"><CheckCircle2 size={14} /> <span>La IA analizará goles y stats</span></div>
                   </div>
+                </Card>
+                <Card glass className="mj-multicamera-demo-card">
+                  <div className="mj-multicamera-demo-header">
+                    <h4><Video size={18} className="mj-recording-icon-primary" /> Prueba multicámara</h4>
+                    <p>Selecciona dos videos sincronizados para probar la revisión de jugadas desde diferentes ángulos.</p>
+                  </div>
+                  <div className="mj-multicamera-demo-grid">
+                    <label className="mj-multicamera-file-input">
+                      <span>Cámara 1</span>
+                      <small>Ángulo: side_left</small>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={(event) => {
+                          setMulticameraCam1File(event.target.files?.[0] ?? null);
+                          setMulticameraError(null);
+                        }}
+                      />
+                      <strong>{multicameraCam1File?.name || 'Sin video seleccionado'}</strong>
+                    </label>
+                    <label className="mj-multicamera-file-input">
+                      <span>Cámara 2</span>
+                      <small>Ángulo: side_right</small>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={(event) => {
+                          setMulticameraCam2File(event.target.files?.[0] ?? null);
+                          setMulticameraError(null);
+                        }}
+                      />
+                      <strong>{multicameraCam2File?.name || 'Sin video seleccionado'}</strong>
+                    </label>
+                  </div>
+                  <p className="mj-multicamera-demo-note">
+                    Para una prueba rápida puedes seleccionar el mismo video en ambas cámaras. La correlación supone que los videos empiezan aproximadamente al mismo tiempo.
+                  </p>
+                  {multicameraError && (
+                    <div className="mj-multicamera-demo-error">
+                      {multicameraError}
+                    </div>
+                  )}
+                  <Button
+                    size="lg"
+                    fullWidth
+                    onClick={handleAnalyzeMulticamera}
+                    disabled={!multicameraCam1File || !multicameraCam2File || multicameraLoading}
+                  >
+                    {multicameraLoading ? 'Analizando las dos cámaras...' : 'Analizar dos cámaras'}
+                  </Button>
                 </Card>
                 {cameraError && (
                   <div style={{ padding: 'var(--spacing-md)', background: 'rgba(255,59,48,0.1)', color: 'var(--color-danger)', borderRadius: '12px', fontSize: 'var(--font-size-sm)', textAlign: 'center' }}>

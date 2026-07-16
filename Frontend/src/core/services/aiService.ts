@@ -71,6 +71,17 @@ export interface AnalyzeMatchVideoParams {
   runBallDetection?: boolean;
 }
 
+export interface AnalyzeMulticameraMatchParams {
+  cam1File: File;
+  cam2File: File;
+  cam1Angle?: string;
+  cam2Angle?: string;
+  matchMode?: string;
+  runDetection?: boolean;
+  runTracking?: boolean;
+  runBallDetection?: boolean;
+}
+
 interface ApiErrorBody {
   detail?: unknown;
   message?: unknown;
@@ -125,6 +136,40 @@ export const analyzeMatchVideo = async ({
   const queryParams = new URLSearchParams({
     match_mode: matchMode,
     cam_1_angle: cameraAngle,
+    run_detection: String(runDetection),
+    run_tracking: String(runTracking),
+    run_ball_detection: String(runBallDetection),
+  });
+
+  const endpoint = `/analyze-match?${queryParams.toString()}`;
+  const response = await fetch(`${AI_API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  await assertOkResponse(response, '/analyze-match');
+
+  return response.json() as Promise<AnalyzeMatchResponse>;
+};
+
+export const analyzeMulticameraMatch = async ({
+  cam1File,
+  cam2File,
+  cam1Angle = 'side_left',
+  cam2Angle = 'side_right',
+  matchMode = 'casual',
+  runDetection = true,
+  runTracking = false,
+  runBallDetection = true,
+}: AnalyzeMulticameraMatchParams): Promise<AnalyzeMatchResponse> => {
+  const formData = new FormData();
+  formData.append('cam_1', cam1File);
+  formData.append('cam_2', cam2File);
+
+  const queryParams = new URLSearchParams({
+    match_mode: matchMode,
+    cam_1_angle: cam1Angle,
+    cam_2_angle: cam2Angle,
     run_detection: String(runDetection),
     run_tracking: String(runTracking),
     run_ball_detection: String(runBallDetection),
