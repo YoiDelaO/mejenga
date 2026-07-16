@@ -6,7 +6,7 @@ import { Button } from '../../components/Button/Button';
 import { Card } from '../../components/Card/Card';
 import { Modal } from '../../components/Modal/Modal';
 import { RankIcon } from '../../components/RankIcon/RankIcon';
-import { Swords, Users, User, MapPin, CheckCircle2, Video, Camera, Trophy, Star } from 'lucide-react';
+import { Swords, MapPin, CheckCircle2, Video, Camera, Trophy, Star } from 'lucide-react';
 import { Avatar } from '../../components/Avatar/Avatar';
 import './MatchmakingLobby.css';
 
@@ -18,6 +18,62 @@ interface RivalPlayer {
 }
 
 const HONOR_TAGS = ['Fair Play', 'Buen líder', 'Respetuoso', 'Competitivo', 'Buena actitud'];
+
+const FRONTEND_STATUS_LABELS: Record<string, string> = {
+  no_review_needed: 'No requiere revisión',
+  review_ready: 'Clips listos para revisar',
+  human_review_required: 'Requiere revisión humana',
+  camera_setup_required: 'Configuración de cámaras incompleta',
+  analysis_ready: 'Análisis listo',
+};
+
+const PRIMARY_ACTION_LABELS: Record<string, string> = {
+  none: 'Sin acción requerida',
+  review_clips: 'Revisar clips',
+  review_multicamera_event: 'Revisar jugada multicámara',
+  fix_camera_setup: 'Corregir configuración de cámaras',
+};
+
+const AI_MAIN_MESSAGE_LABELS: Record<string, string> = {
+  'Match analysis completed. No review is required.': 'Análisis completado. No se requiere revisión.',
+  'Match review clips are ready.': 'Los clips de revisión están listos.',
+  'A multicamera event requires human review.': 'Una jugada multicámara requiere revisión humana.',
+  'Camera setup must be completed before validating the match.': 'Debes completar la configuración de cámaras antes de validar el partido.',
+};
+
+const AI_WARNING_LABELS: Record<string, string> = {
+  'Player detection quality is poor.': 'La calidad de detección de jugadores fue baja.',
+  'Low number of players detected.': 'Se detectaron pocos jugadores.',
+  'Video is very short for match analysis.': 'El video es muy corto para el análisis del partido.',
+  'Video may not show enough players for a ranked match.': 'El video puede no mostrar suficientes jugadores para un partido ranked.',
+  'No usable camera videos were found.': 'No se encontraron videos de cámara utilizables.',
+  'Multicamera correlation assumes all videos start at approximately the same time.': 'La correlación multicámara asume que todos los videos empiezan aproximadamente al mismo tiempo.',
+  'At least two cameras are required to correlate multicamera events.': 'Se requieren al menos dos cámaras para correlacionar eventos multicámara.',
+  'No shot or goal candidate events with timestamps were available.': 'No se encontraron tiros o candidatos a gol con marcas de tiempo.',
+};
+
+const getFrontendStatusLabel = (status: string) => (
+  FRONTEND_STATUS_LABELS[status] || status
+);
+
+const getPrimaryActionLabel = (action: string) => (
+  PRIMARY_ACTION_LABELS[action] || action
+);
+
+const getAiMainMessageLabel = (message: string) => (
+  AI_MAIN_MESSAGE_LABELS[message] || message
+);
+
+const getAiWarningLabel = (warning: string) => {
+  const cameraPrefixMatch = warning.match(/^(cam_\d+:\s*)(.*)$/);
+
+  if (cameraPrefixMatch) {
+    const [, prefix, message] = cameraPrefixMatch;
+    return `${prefix}${AI_WARNING_LABELS[message] || message}`;
+  }
+
+  return AI_WARNING_LABELS[warning] || warning;
+};
 
 const HonorScreen: React.FC<{ onFinish: () => void }> = ({ onFinish }) => {
   const [ratings, setRatings] = useState<Record<string, { stars: number; tags: string[] }>>({});
@@ -463,33 +519,77 @@ export const MatchmakingLobby: React.FC = () => {
             ) : retoPhase === 'resultados' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
                 {aiFrontendSummary && (
-                  <Card glass className="mj-match-results-card">
-                    <span className="mj-match-results-header">Analisis IA</span>
-                    <h3>{aiFrontendSummary.main_message}</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left', marginTop: 'var(--spacing-md)' }}>
-                      <div><strong>Estado:</strong> {aiFrontendSummary.frontend_status}</div>
-                      <div><strong>Accion:</strong> {aiFrontendSummary.primary_action}</div>
-                      <div><strong>Camara:</strong> {aiFrontendSummary.primary_camera_id || 'Sin camara recomendada'}</div>
-                      <div><strong>Angulo:</strong> {aiFrontendSummary.primary_camera_angle || 'Sin angulo recomendado'}</div>
-                      <div><strong>Requiere revision:</strong> {aiAnalysisResponse?.needs_review ? 'Si' : 'No'}</div>
-                      {aiFrontendSummary.warnings.length > 0 && (
-                        <div>
-                          <strong>Alertas:</strong>
-                          <ul style={{ margin: '8px 0 0 18px', padding: 0 }}>
-                            {aiFrontendSummary.warnings.map((warning, index) => (
-                              <li key={`${warning}-${index}`}>{warning}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                  <Card glass className="mj-ai-analysis-card">
+                    <div className="mj-ai-analysis-header">
+                      <span className="mj-match-results-header">ANÁLISIS IA</span>
+                      <span className="mj-ai-status-pill">
+                        {getFrontendStatusLabel(aiFrontendSummary.frontend_status)}
+                      </span>
+                    </div>
+                    <h3>{getAiMainMessageLabel(aiFrontendSummary.main_message)}</h3>
+                    <div className="mj-ai-summary-grid">
+                      <div className="mj-ai-summary-item">
+                        <span>Estado</span>
+                        <strong>{getFrontendStatusLabel(aiFrontendSummary.frontend_status)}</strong>
+                      </div>
+                      <div className="mj-ai-summary-item">
+                        <span>Acción sugerida</span>
+                        <strong>{getPrimaryActionLabel(aiFrontendSummary.primary_action)}</strong>
+                      </div>
+                      <div className="mj-ai-summary-item">
+                        <span>Cámara recomendada</span>
+                        <strong>{aiFrontendSummary.primary_camera_id || 'Sin cámara recomendada'}</strong>
+                      </div>
+                      <div className="mj-ai-summary-item">
+                        <span>Ángulo recomendado</span>
+                        <strong>{aiFrontendSummary.primary_camera_angle || 'Sin ángulo recomendado'}</strong>
+                      </div>
+                      <div className="mj-ai-summary-item">
+                        <span>Revisión humana</span>
+                        <strong>{aiFrontendSummary.requires_human_review ? 'Requerida' : 'No requerida'}</strong>
+                      </div>
+                      <div className="mj-ai-summary-item">
+                        <span>Revisión general</span>
+                        <strong>{aiAnalysisResponse?.needs_review ? 'Sí' : 'No'}</strong>
+                      </div>
                     </div>
                     {aiFrontendSummary.primary_video_url && (
-                      <video
-                        src={aiFrontendSummary.primary_video_url}
-                        controls
-                        className="mj-video-playback"
-                        style={{ marginTop: 'var(--spacing-md)' }}
-                      />
+                      <div className="mj-ai-video-section">
+                        <h4>Video recomendado por la IA</h4>
+                        <video
+                          src={aiFrontendSummary.primary_video_url}
+                          controls
+                          className="mj-video-playback"
+                        />
+                      </div>
+                    )}
+                    {aiFrontendSummary.warnings.length > 0 && (
+                      <div className="mj-ai-warnings">
+                        <h4>Alertas</h4>
+                        <ol>
+                          {aiFrontendSummary.warnings.map((warning, index) => (
+                            <li key={`${warning}-${index}`}>{getAiWarningLabel(warning)}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                    {aiFrontendSummary.requires_human_review && (
+                      <div className="mj-ai-decision-panel">
+                        <h4>Decisión requerida</h4>
+                        <p>La conexión de decisión se implementará en el siguiente paso.</p>
+                        <div className="mj-ai-decision-options">
+                          {aiFrontendSummary.review_decision_options.map(option => (
+                            <Button
+                              key={option.value}
+                              variant="outline"
+                              size="sm"
+                              disabled
+                            >
+                              {option.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </Card>
                 )}
@@ -498,7 +598,8 @@ export const MatchmakingLobby: React.FC = () => {
                     {aiError}
                   </div>
                 )}
-                <Card glass className="mj-match-results-card">
+                {!aiFrontendSummary && (
+                  <Card glass className="mj-match-results-card">
                   <span className="mj-match-results-header">Reto Finalizado</span>
                   <div className="mj-match-results-score">
                     <div><h4>Tú</h4><span className="mj-score-num">3</span></div>
@@ -508,7 +609,8 @@ export const MatchmakingLobby: React.FC = () => {
                   <div className="mj-match-victory-badge">
                     <Trophy size={16} /> ¡VICTORIA!
                   </div>
-                </Card>
+                  </Card>
+                )}
                 <Button size="lg" fullWidth onClick={handleFinalizarPartido}>Dar Honor a Rivales</Button>
               </div>
             ) : retoPhase === 'dar_honor' ? (

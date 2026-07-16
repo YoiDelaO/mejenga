@@ -523,6 +523,97 @@
   fontWeight: 700;
 }
 
+.mj-ai-analysis-card {
+  padding: var(--spacing-lg);
+  text-align: left;
+  background: linear-gradient(180deg, rgba(0,255,135,0.08) 0%, rgba(0,0,0,0) 100%);
+  border: 1px solid rgba(0, 255, 135, 0.18);
+}
+
+.mj-ai-analysis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.mj-ai-status-pill {
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(0, 255, 135, 0.12);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.mj-ai-analysis-card h3,
+.mj-ai-analysis-card h4 {
+  margin: 0;
+}
+
+.mj-ai-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.mj-ai-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--spacing-sm);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-border);
+}
+
+.mj-ai-summary-item span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mj-ai-summary-item strong {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.mj-ai-video-section,
+.mj-ai-warnings,
+.mj-ai-decision-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.mj-ai-warnings ol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.mj-ai-decision-panel p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.mj-ai-decision-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
 /* Recording Instructions */
 .mj-recording-instructions h4 {
   margin: 0 0 12px 0;
